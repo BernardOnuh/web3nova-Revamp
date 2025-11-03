@@ -266,7 +266,12 @@ const OverviewSplit = () => {
                   ))}
                 </div>
 
-                <Link href="/training" className="block">
+                <a 
+                  href="https://docs.google.com/forms/d/1Is6m8-p8jPW7mgbdWuyI0P2TBIb_s0RNk0tgV3UuX6U" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="block"
+                >
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
@@ -275,7 +280,7 @@ const OverviewSplit = () => {
                     <span>Start Learning</span>
                     <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
                   </motion.button>
-                </Link>
+                </a>
 
                 <div className="mt-3 text-center">
                   <span className="text-xs text-gray-500 font-['Inter']">
