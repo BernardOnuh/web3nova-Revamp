@@ -141,9 +141,19 @@ function PartnersCarousel() {
 
 // ===================================================================
 // EventsTimeline Component
-// ===================================================================
+// ===================================================================   
 function EventsTimeline() {
   const events = [
+    {
+      video: "https://www.youtube.com/embed/ZHEBcTTnrTY",
+      name: "Base Batches 2.0 Hacker House",
+      date: "November 2025",
+      location: "Akure",
+      attendees: "70+",
+      xLink: "https://x.com/web3_nova/status/1985266700565017051",
+      description: "Builders coming together to participate in the hackathon Base Batches 2.0.",
+      color: "#FDB913"
+    },
     {
       video: "https://www.youtube.com/embed/OfeXlX8r--M",
       name: "SUI on Campus FUTA Workshop",
@@ -152,6 +162,16 @@ function EventsTimeline() {
       attendees: "80+",
       xLink: "https://x.com/web3_nova/status/1970811022782181823",
       description: "An engaging workshop introducing students to SUI blockchain technology, covering smart contracts and decentralized applications.",
+      color: "#4A90E2"
+    },
+    {
+      video: "https://www.youtube.com/embed/FeNlIFMtpZk",
+      name: "Avax Builders Workshop",
+      date: "August 2025",
+      location: "FUTA, Akure",
+      attendees: "40+",
+      xLink: "https://x.com/web3_nova/status/1946214960066859358",
+      description: "An engaging workshop introducing Avax L1 and NFTs wrapping up with paint and sip.",
       color: "#4A90E2"
     },
     {
@@ -176,7 +196,7 @@ function EventsTimeline() {
     },
     {
       video: "https://www.youtube.com/embed/cOiMfXCZk9g",
-      name: "Base Batches 2.0 Hacker House",
+      name: "Base Batches 1.0 Hacker House",
       date: "May 2025",
       location: "Akure",
       attendees: "100+",
@@ -205,6 +225,7 @@ function EventsTimeline() {
       color: "#88B9E6"
     }
   ];
+
 
   return (
     <section className="relative z-10 py-20">

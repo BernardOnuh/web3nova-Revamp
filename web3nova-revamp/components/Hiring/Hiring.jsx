@@ -69,7 +69,8 @@ export default function HiringSection() {
         "Develop and execute social media strategies",
         "Create engaging content across platforms",
         "Monitor and respond to community engagement",
-      ]
+      ],
+      link : "https://docs.google.com/forms/d/e/1FAIpQLScsgLj37aZO5cHCnRe9ZD8z22wGE1InFrYHzRsDsuyXvT1BaA/viewform",
     },
     {
       id: "growth",
@@ -82,7 +83,8 @@ export default function HiringSection() {
         "Design and implement growth experiments",
         "Analyze metrics and optimize funnels",
         "Drive user acquisition and retention",
-      ]
+      ],
+      link : "https://docs.google.com/forms/d/e/1FAIpQLSefWFGhNYYwfwwRKjxBDo7NyqA3dujB9-cywRdZUKx33BWRvA/viewform",
     },
   ];
 
@@ -204,7 +206,7 @@ export default function HiringSection() {
                   {/* Apply Button */}
                   <div className="pt-4 border-t border-white/10">
                     <a
-                      href="https://bit.ly/47Zag3N"
+                      href={role.link}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="relative group/btn w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-bold text-base text-black hover:scale-105 shadow-lg transition-all duration-300"
