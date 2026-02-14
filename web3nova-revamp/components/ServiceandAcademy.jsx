@@ -267,7 +267,7 @@ const OverviewSplit = () => {
                 </div>
 
                 <a 
-                  href="https://docs.google.com/forms/d/1Is6m8-p8jPW7mgbdWuyI0P2TBIb_s0RNk0tgV3UuX6U" 
+                  href="/register" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="block"
