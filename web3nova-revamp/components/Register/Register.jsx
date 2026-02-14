@@ -73,28 +73,28 @@ const reviews = [
     highlight: "Upskill my career as a blockchain developer.",
     author: "Marvellous",
     role: "Blockchain developer at Web3Nova",
-    image: null
+    image: "/Tiwa.jpg"
   },
   {
     text: "My time at Web3Nova as help me in leveling up my frontend`, communication and networking skills",
     highlight: "Improved my frontend skills and landed frontend dev jobs",
     author: "Adedamola",
     role: "Frontend Developer at Web3Nova",
-    image: null
+    image: "/Adedamola.jpg"
   },
   {
     text: "At Web3nova, I’ve built connections, turned a month-long project into a 24-hour sprint, learned to earn while learning, and discovered expertise isn’t reserved for “big” moments.",
     highlight: "Turning 3weeks project into 3days project",
     author: "Afolabi Emmanuel",
     role: "Blockchain Developer at Web3Nova",
-    image: null
+    image: "/Emmanuel.jpg"
   },
   {
     text: "The curriculum is world-class. I learned Solidity, React, and smart contract security in just 12 weeks. Best investment I ever made.",
     highlight: "Web3nova transformed from an aspiring blockchain developer to an experienced blockchain developer, which lead me to build and co-founded a startup called paycrypt (paycrypt.org)",
     author: "Adebanjo Abraham",
     role: "Blockchain Developer at Web3Nova",
-    image: null
+    image: "/Abraham.jpg",
   }
 ];
 
@@ -117,7 +117,11 @@ function ReviewCard({ review }) {
       </div>
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center overflow-hidden border border-white/10">
-          <User className="w-5 h-5 md:w-6 md:h-6 text-gray-400" />
+          {review.image ? (
+            <img src={review.image} alt={review.author} className="w-full h-full object-cover" />
+          ) : (
+            <User className="w-5 h-5 md:w-6 md:h-6 text-gray-400" />
+          )}
         </div>
         <div>
           <h4 className="text-white font-bold text-sm md:text-base">{review.author}</h4>
