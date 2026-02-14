@@ -27,9 +27,9 @@ export default function Web3NovaHomepage() {
         size: Math.random() * 30 + 10,
         duration: Math.random() * 3 + 2,
       };
-      
+
       setBubbles(prev => [...prev, newBubble]);
-      
+
       // Remove bubble after animation
       setTimeout(() => {
         setBubbles(prev => prev.filter(b => b.id !== newBubble.id));
@@ -104,9 +104,8 @@ export default function Web3NovaHomepage() {
           border: "2px solid rgba(46, 123, 209, 0.25)",
           boxShadow:
             "0 30px 120px rgba(46, 123, 209, 0.35), inset 0 0 100px rgba(46, 123, 209, 0.2)",
-          transform: `translate(${mousePosition.x * 0.05}px, ${
-            mousePosition.y * 0.05
-          }px)`,
+          transform: `translate(${mousePosition.x * 0.05}px, ${mousePosition.y * 0.05
+            }px)`,
         }}
       >
         {/* Glass reflection */}
@@ -130,9 +129,8 @@ export default function Web3NovaHomepage() {
           border: "2px solid rgba(146, 180, 228, 0.25)",
           boxShadow:
             "0 30px 130px rgba(146, 180, 228, 0.3), inset 0 0 100px rgba(146, 180, 228, 0.15)",
-          transform: `translate(${-mousePosition.x * 0.03}px, ${
-            -mousePosition.y * 0.03
-          }px)`,
+          transform: `translate(${-mousePosition.x * 0.03}px, ${-mousePosition.y * 0.03
+            }px)`,
         }}
       >
         {/* Glass highlight */}
@@ -156,9 +154,8 @@ export default function Web3NovaHomepage() {
           border: "2px solid rgba(255, 184, 0, 0.3)",
           boxShadow:
             "0 30px 120px rgba(255, 184, 0, 0.4), inset 0 0 90px rgba(255, 184, 0, 0.2)",
-          transform: `translate(${mousePosition.x * 0.04}px, ${
-            -mousePosition.y * 0.04
-          }px)`,
+          transform: `translate(${mousePosition.x * 0.04}px, ${-mousePosition.y * 0.04
+            }px)`,
         }}
       >
         {/* Glass shine */}
@@ -241,9 +238,7 @@ export default function Web3NovaHomepage() {
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row gap-3 md:gap-4 w-full sm:w-auto px-4 sm:px-0">
           <Link
-            href="https://forms.gle/Hid5MvmJJQsUUry46"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/register"
             className="group relative px-6 md:px-8 py-3.5 md:py-4 bg-gradient-to-r from-[#2E7BD1] via-[#3a8de8] to-[#92B4E4] text-white font-semibold rounded-xl overflow-visible transition-all duration-300 hover:shadow-2xl animate-fade-in-up animate-vibrate-attention inline-block text-center"
             style={{
               boxShadow: "0 12px 50px rgba(46, 123, 209, 0.5)",
@@ -251,15 +246,15 @@ export default function Web3NovaHomepage() {
           >
             {/* Pulsing ring effect */}
             <div className="absolute inset-0 rounded-xl animate-pulse-ring"></div>
-            
+
             <span className="relative z-10 text-sm md:text-base">
               Join Next Cohort
             </span>
             <div className="absolute inset-0 bg-gradient-to-r from-[#1a5a9f] via-[#2E7BD1] to-[#1a5a9f] opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
             <div className="absolute inset-0 bg-white/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
           </Link>
-          
-          <button 
+
+          <button
             className="group relative px-6 md:px-8 py-3.5 md:py-4 bg-gradient-to-r from-[#FFB800]/10 via-[#FFB800]/15 to-[#FFB800]/10 backdrop-blur-xl border-2 border-[#FFB800]/40 text-[#FFB800] font-semibold rounded-xl hover:bg-[#FFB800]/20 hover:border-[#FFB800]/60 transition-all duration-300 hover:scale-105 animate-fade-in-up"
             style={{
               boxShadow: "0 8px 32px rgba(255, 184, 0, 0.2)",
