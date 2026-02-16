@@ -157,7 +157,7 @@ export default function Web3NovaHomepage() {
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row gap-3 md:gap-4 w-full sm:w-auto px-4 sm:px-0">
           <Link 
-            href="https://docs.google.com/forms/d/1Is6m8-p8jPW7mgbdWuyI0P2TBIb_s0RNk0tgV3UuX6U"
+            href="/register"
             target="_blank"
             rel="noopener noreferrer"
             className="group relative px-6 md:px-8 py-3.5 md:py-4 bg-gradient-to-r from-[#2E7BD1] via-[#3a8de8] to-[#92B4E4] text-white font-semibold rounded-xl overflow-hidden transition-all duration-300 hover:shadow-2xl hover:scale-105 animate-fade-in-up inline-block text-center"
