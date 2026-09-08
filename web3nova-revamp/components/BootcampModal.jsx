@@ -122,7 +122,8 @@ const BootcampModal = () => {
                 href={BOOTCAMP_FORM_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-xl font-bold text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:shadow-[0_0_30px_rgba(43,110,255,0.45)] transition-all duration-300"
+                className="group flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-xl font-bold text-white bg-gradient-to-r from-[#2E7BD1] via-[#3a8de8] to-[#92B4E4] hover:shadow-2xl hover:scale-[1.02] transition-all duration-300"
+                style={{ boxShadow: "0 12px 50px rgba(46, 123, 209, 0.5)" }}
                 style={{ fontFamily: "'Inter', sans-serif" }}
               >
                 Join the Waitlist
