@@ -19,8 +19,7 @@ const BootcampModal = () => {
     if (typeof window === "undefined") return;
     if (sessionStorage.getItem(DISMISS_KEY) === "1") return;
 
-    const timer = setTimeout(() => setOpen(true), 5000);
-    return () => clearTimeout(timer);
+    setOpen(true);
   }, [router.pathname]);
 
   const dismiss = () => {
