@@ -84,7 +84,8 @@ const BootcampModal = () => {
               <p className="text-gray-400 text-sm leading-relaxed mb-6">
                 A fast, hands-on 7-day program to help you break into tech.
                 Whether you&apos;re just starting or switching careers, this
-                is your on-ramp — spots are limited.
+                is your on-ramp. Spots are limited — join the waitlist and
+                we&apos;ll notify you if you&apos;re picked.
               </p>
 
               <div className="space-y-3 mb-7">
@@ -111,8 +112,8 @@ const BootcampModal = () => {
                     <Clock className="w-4 h-4 text-purple-400" />
                   </div>
                   <div>
-                    <p className="text-sm text-white font-semibold">Just a few minutes to join</p>
-                    <p className="text-xs text-gray-500">Fill the short form to reserve your spot.</p>
+                    <p className="text-sm text-white font-semibold">Get notified if you&apos;re picked</p>
+                    <p className="text-xs text-gray-500">Join the waitlist — we&apos;ll reach out once spots open.</p>
                   </div>
                 </div>
               </div>
@@ -124,7 +125,7 @@ const BootcampModal = () => {
                 className="group flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-xl font-bold text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:shadow-[0_0_30px_rgba(43,110,255,0.45)] transition-all duration-300"
                 style={{ fontFamily: "'Inter', sans-serif" }}
               >
-                Join Now — Free Entry
+                Join the Waitlist
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
               </a>
 
