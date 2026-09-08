@@ -121,7 +121,7 @@ const BootcampModal = () => {
                 href={BOOTCAMP_FORM_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-xl font-bold text-black bg-gradient-to-r from-yellow-400 via-blue-400 to-blue-500 hover:shadow-[0_0_30px_rgba(43,110,255,0.45)] transition-all duration-300"
+                className="group flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-xl font-bold text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:shadow-[0_0_30px_rgba(43,110,255,0.45)] transition-all duration-300"
                 style={{ fontFamily: "'Inter', sans-serif" }}
               >
                 Join Now — Free Entry
