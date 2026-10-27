@@ -191,7 +191,7 @@ export default function BootcampRegister() {
             {[
               ["16", "weeks"],
               [String(COURSES.length), "tracks"],
-              [`₦${minPrice / 1000}k`, "from"],
+              [minPrice >= 1000 ? `₦${minPrice / 1000}k` : formatNaira(minPrice), "from"],
             ].map(([big, small]) => (
               <div key={small} className="py-3">
                 <p className={`${DISPLAY} text-2xl font-bold leading-none`}>{big}</p>
@@ -376,7 +376,7 @@ export default function BootcampRegister() {
             </div>
             {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
             <PayButton loading={loading} ready={isValid} label={payLabel} />
-            <p className="text-xs text-center mt-3 text-gray-500">{missing || "You'll be redirected to Monnify to pay."}</p>
+            <p className="text-xs text-center mt-3 text-gray-300">{missing || "You'll be redirected to Monnify to pay."}</p>
             <div className="mt-5 pt-5 border-t border-white/10 space-y-2 text-xs text-gray-400">
               <p className="flex items-center gap-2"><Lock className="w-4 h-4 text-green-400" /> Secure payment by Monnify</p>
               <p className="flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-green-400" /> Card, bank transfer or USSD</p>
@@ -389,13 +389,13 @@ export default function BootcampRegister() {
             {error && <p className="text-red-400 text-xs mb-2">{error}</p>}
             <div className="flex items-center gap-3">
               <div className="min-w-0 flex-1">
-                <p className="text-xs text-gray-400 truncate">{missing || `${courseStyle.label} · ${location.title}`}</p>
+                <p className="text-xs font-medium text-gray-200 truncate">{missing || `${courseStyle.label} · ${location.title}`}</p>
                 <p className={`${DISPLAY} text-xl font-bold text-yellow-400 leading-tight`}>
                   {breakdown ? formatNaira(breakdown.total) : <>from {formatNaira(minPrice)}</>}
                 </p>
                 {breakdown && (
-                  <p className="text-[11px] text-gray-500 leading-tight">
-                    {formatNaira(breakdown.price)} + {formatNaira(breakdown.fee)} service charge
+                  <p className="text-[11px] text-gray-300 leading-tight whitespace-nowrap">
+                    incl. {formatNaira(breakdown.fee)} service fee
                   </p>
                 )}
               </div>
@@ -411,7 +411,9 @@ export default function BootcampRegister() {
         html, body { background: #05070d; }
         @keyframes bc-fade { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
         .bc-fade { animation: bc-fade 0.6s ease-out both; }
-        @media (prefers-reduced-motion: reduce) { .bc-fade { animation: none; } }
+        @keyframes bc-sheen { 0% { left: -60%; } 60%, 100% { left: 130%; } }
+        .bc-sheen { animation: bc-sheen 2.8s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) { .bc-fade, .bc-sheen { animation: none; } }
       `}</style>
     </div>
   );
@@ -422,9 +424,25 @@ function PayButton({ loading, ready, label, compact }) {
     <button
       type="submit"
       disabled={loading}
-      className={`${DISPLAY} inline-flex items-center justify-center gap-2 rounded-full font-bold transition-all duration-300 ${compact ? "px-5 py-3.5 text-base" : "w-full px-6 py-4 text-lg"} ${ready ? "bg-gradient-to-r from-[#4A90E2] to-[#FDB913] text-black hover:scale-[1.03] shadow-[0_10px_40px_-10px_rgba(253,185,19,0.8)]" : "bg-white/10 text-white hover:bg-white/15"} ${loading ? "opacity-70 cursor-wait" : "cursor-pointer"}`}
+      className={`${DISPLAY} group relative overflow-hidden inline-flex items-center justify-center gap-2.5 rounded-full font-bold text-white tracking-tight transition-all duration-300 active:scale-[0.97] ${compact ? "pl-5 pr-2 py-2 text-[17px]" : "w-full pl-6 pr-2 py-2 text-lg"} ${ready ? "bg-gradient-to-r from-[#1E5FB4] via-[#2563EB] to-[#4F46E5] shadow-[0_10px_30px_-6px_rgba(37,99,235,0.75)] ring-1 ring-white/20 hover:shadow-[0_14px_40px_-6px_rgba(79,70,229,0.9)] hover:brightness-110" : "bg-gradient-to-r from-[#1E5FB4] to-[#2563EB] ring-1 ring-white/10 hover:brightness-110"} ${loading ? "opacity-80 cursor-wait" : "cursor-pointer"}`}
+      style={{ textShadow: "0 1px 2px rgba(0,0,0,0.25)" }}
     >
-      {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Redirecting…</> : <>{label} <ArrowRight className="w-5 h-5" /></>}
+      {/* Moving sheen once the form is ready */}
+      {ready && !loading && <span aria-hidden className="bc-sheen absolute inset-y-0 -left-1/2 w-1/2 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-[-20deg]" />}
+
+      {loading ? (
+        <span className="relative flex items-center gap-2 py-2.5 pr-4"><Loader2 className="w-5 h-5 animate-spin" /> Redirecting…</span>
+      ) : (
+        <>
+          <span className="relative flex items-center gap-2 whitespace-nowrap">
+            {ready && <Lock className="w-4 h-4 opacity-90" strokeWidth={2.5} />}
+            {label}
+          </span>
+          <span className={`relative flex items-center justify-center rounded-full bg-white text-[#2563EB] transition-transform duration-300 group-hover:translate-x-0.5 ${compact ? "w-9 h-9" : "w-11 h-11"}`}>
+            <ArrowRight className="w-5 h-5" strokeWidth={2.5} />
+          </span>
+        </>
+      )}
     </button>
   );
 }

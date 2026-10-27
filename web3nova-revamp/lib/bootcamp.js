@@ -43,7 +43,11 @@ export const COURSES = [
   },
 ];
 
-export const LOCATIONS = [
+// For test payments only: set NEXT_PUBLIC_BOOTCAMP_TEST_PRICE=100 to charge ₦100
+// for every location. Leave it unset in production.
+const TEST_PRICE = Number(process.env.NEXT_PUBLIC_BOOTCAMP_TEST_PRICE) || 0;
+
+const BASE_LOCATIONS = [
   {
     id: "onsite-akure",
     title: "On-site – Akure",
@@ -57,6 +61,10 @@ export const LOCATIONS = [
     price: 100000,
   },
 ];
+
+export const LOCATIONS = TEST_PRICE
+  ? BASE_LOCATIONS.map((l) => ({ ...l, price: TEST_PRICE }))
+  : BASE_LOCATIONS;
 
 // Monnify's processing fee, passed on to the student so Web3Nova receives the full
 // program price. The method isn't known until checkout, so we use the highest rate
