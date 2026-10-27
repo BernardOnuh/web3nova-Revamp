@@ -238,7 +238,7 @@ export default function Web3NovaHomepage() {
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row gap-3 md:gap-4 w-full sm:w-auto px-4 sm:px-0">
           <Link
-            href="/register"
+            href="/bootcamp"
             className="group relative px-6 md:px-8 py-3.5 md:py-4 bg-gradient-to-r from-[#2E7BD1] via-[#3a8de8] to-[#92B4E4] text-white font-semibold rounded-xl overflow-visible transition-all duration-300 hover:shadow-2xl animate-fade-in-up animate-vibrate-attention inline-block text-center"
             style={{
               boxShadow: "0 12px 50px rgba(46, 123, 209, 0.5)",
@@ -248,7 +248,7 @@ export default function Web3NovaHomepage() {
             <div className="absolute inset-0 rounded-xl animate-pulse-ring"></div>
 
             <span className="relative z-10 text-sm md:text-base">
-              Join Next Cohort
+              Join the 16-Week Bootcamp
             </span>
             <div className="absolute inset-0 bg-gradient-to-r from-[#1a5a9f] via-[#2E7BD1] to-[#1a5a9f] opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
             <div className="absolute inset-0 bg-white/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>

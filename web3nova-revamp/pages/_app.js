@@ -1,6 +1,5 @@
 import "@/styles/globals.css";
 import { ThemeProvider } from "next-themes";
-import BootcampModal from "@/components/BootcampModal";
 
 export default function App({ Component, pageProps }) {
   return (
@@ -10,7 +9,6 @@ export default function App({ Component, pageProps }) {
       enableSystem={true}
     >
       <Component {...pageProps} />
-      <BootcampModal />
     </ThemeProvider>
   );
 }

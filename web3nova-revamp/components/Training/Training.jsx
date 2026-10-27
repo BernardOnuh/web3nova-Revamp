@@ -94,7 +94,7 @@ function HeroSection() {
             <div className="absolute -bottom-2 -left-3 w-2 h-2 rounded-full bg-yellow-300 animate-bounce" style={{ animationDelay: '1s', animationDuration: '2.2s' }} />
             <div className="absolute -bottom-3 -right-2 w-3 h-3 rounded-full bg-blue-300 animate-bounce" style={{ animationDelay: '0.3s', animationDuration: '2.8s' }} />
             
-            <Link href="/register">
+            <Link href="/bootcamp">
               <span 
                 className="group relative inline-flex items-center gap-3 px-10 py-5 rounded-full font-bold text-lg transition-all duration-300 hover:scale-110 overflow-hidden shadow-2xl hover:shadow-[0_0_60px_rgba(74,144,226,0.8)] cursor-pointer" 
                 style={{ background: 'linear-gradient(135deg, #4A90E2 0%, #FDB913 100%)', color: '#000', fontFamily: 'Space Grotesk, sans-serif' }}
@@ -107,7 +107,7 @@ function HeroSection() {
                 
                 <span className="relative z-10 flex items-center gap-3">
                   <Sparkles className="w-5 h-5" />
-                  Join the Next Cohort
+                  Join the 16-Week Bootcamp
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform duration-300" />
                 </span>
               </span>
