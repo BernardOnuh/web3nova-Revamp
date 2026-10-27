@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
-import { Users, UserCheck, Clock, LogOut, Wifi, RefreshCw, Menu, X, MessageCircle } from "lucide-react";
+import { Users, UserCheck, Clock, LogOut, Wifi, RefreshCw, Menu, X } from "lucide-react";
 import { getToken, clearToken, deskFetch } from "@/lib/deskApi";
 
 const NAV = [
   { href: "/desk/applicants", label: "Applicants", icon: Users },
   { href: "/desk/interns", label: "Interns", icon: UserCheck },
   { href: "/desk/attendance", label: "Attendance", icon: Clock },
-  { href: "/desk/outreach", label: "Outreach", icon: MessageCircle },
 ];
 
 function Sidebar({ router, hub, syncing, syncMsg, syncHubIp, logout, onClose }) {
