@@ -5,12 +5,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Globe, Smartphone, Palette, Brain, Sparkles, Cpu, MapPin, Wifi,
   User, Mail, Phone, School, ArrowRight, Loader2, Check,
-  ShieldCheck, MailCheck, Rocket, Users, ChevronDown, Lock, Zap,
+  ShieldCheck, MailCheck, Rocket, Users, ChevronDown, Lock, Zap, X, Flame,
 } from "lucide-react";
 import { COURSES, LOCATIONS, formatNaira, priceBreakdown } from "@/lib/bootcamp";
 import { BootcampBackground, fontVars } from "./theme";
 
 const DRAFT_KEY = "w3n_bootcamp_draft";
+const SPOTS_KEY = "w3n_bootcamp_spots_seen";
+const COHORT_SPOTS = 30;
+const SPOTS_DELAY_MS = 5000;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DISPLAY = "font-[family-name:var(--font-display)]";
 
@@ -87,6 +90,7 @@ export default function BootcampRegister() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [openFaq, setOpenFaq] = useState(null);
+  const [showSpots, setShowSpots] = useState(false);
   const courseRef = useRef(null);
   const locationRef = useRef(null);
   const detailsRef = useRef(null);
@@ -103,6 +107,27 @@ export default function BootcampRegister() {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(form));
     } catch {}
   }, [form]);
+
+  // "Limited spots" popup: once per visit, after 5 seconds on the page.
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(SPOTS_KEY)) return;
+    } catch {}
+    const t = setTimeout(() => setShowSpots(true), SPOTS_DELAY_MS);
+    return () => clearTimeout(t);
+  }, []);
+  useEffect(() => {
+    if (!showSpots) return;
+    const onKey = (e) => e.key === "Escape" && closeSpots();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showSpots]);
+  const closeSpots = () => {
+    setShowSpots(false);
+    try {
+      sessionStorage.setItem(SPOTS_KEY, "1");
+    } catch {}
+  };
 
   const course = COURSES.find((c) => c.id === form.courseId);
   const courseStyle = course && COURSE_STYLE[course.id];
@@ -406,6 +431,56 @@ export default function BootcampRegister() {
           </div>
         </form>
       </div>
+
+      {/* Limited spots popup */}
+      <AnimatePresence>
+        {showSpots && (
+          <motion.div
+            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={closeSpots}
+          >
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="spots-title"
+              initial={{ y: 40, opacity: 0, scale: 0.96 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 40, opacity: 0, scale: 0.96 }}
+              transition={{ type: "spring", damping: 22, stiffness: 260 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/15 bg-[#0b1020] p-6 pt-7 text-center shadow-[0_30px_80px_-20px_rgba(37,99,235,0.6)]"
+            >
+              <div aria-hidden className="absolute -top-20 left-1/2 -translate-x-1/2 w-64 h-64 rounded-full blur-3xl opacity-40" style={{ background: "radial-gradient(circle, #FDB913, transparent 70%)" }} />
+              <button type="button" onClick={closeSpots} aria-label="Close"
+                className="absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center text-gray-300 hover:text-white hover:bg-white/10">
+                <X className="w-5 h-5" />
+              </button>
+
+              <span className="relative mx-auto mb-4 w-14 h-14 rounded-2xl flex items-center justify-center bg-gradient-to-br from-[#FDB913] to-[#F97316] text-black shadow-[0_10px_30px_-8px_rgba(253,185,19,0.8)]">
+                <Flame className="w-7 h-7" />
+              </span>
+              <p className="relative text-[11px] font-semibold uppercase tracking-[0.16em] text-yellow-300 mb-2">Limited cohort</p>
+              <h2 id="spots-title" className={`${DISPLAY} relative text-[26px] font-bold leading-tight tracking-tight`}>
+                Spots only opened for{" "}
+                <span className="bg-gradient-to-r from-[#FDB913] to-[#FB923C] bg-clip-text text-transparent">{COHORT_SPOTS} people</span>
+              </h2>
+              <p className="relative text-gray-300 text-[15px] leading-relaxed mt-3 mb-6">
+                We keep each cohort small so everyone gets real attention from mentors. Pick your track and secure your place.
+              </p>
+              <button type="button" onClick={() => { closeSpots(); scrollTo(courseRef); }}
+                className={`${DISPLAY} relative w-full inline-flex items-center justify-center gap-2 rounded-full py-3.5 font-bold text-white bg-gradient-to-r from-[#1E5FB4] via-[#2563EB] to-[#4F46E5] ring-1 ring-white/20 shadow-[0_10px_30px_-6px_rgba(37,99,235,0.75)] hover:brightness-110 active:scale-[0.98] transition`}>
+                Secure my spot <ArrowRight className="w-5 h-5" />
+              </button>
+              <button type="button" onClick={closeSpots} className="relative mt-3 text-sm text-gray-400 hover:text-white">
+                Maybe later
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <style jsx global>{`
         html, body { background: #05070d; }
