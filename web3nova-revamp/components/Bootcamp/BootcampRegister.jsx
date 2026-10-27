@@ -96,11 +96,22 @@ export default function BootcampRegister() {
   const detailsRef = useRef(null);
 
   // Keep the form filled in if someone leaves for payment and comes back.
+  // Personal links (e.g. from WhatsApp outreach) prefill the form via the URL:
+  // /bootcamp?name=…&phone=…&email=…&school=…&course=web-dev&location=onsite-akure
   useEffect(() => {
+    let saved = null;
     try {
-      const saved = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
-      if (saved) setForm((f) => ({ ...f, ...saved }));
+      saved = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
     } catch {}
+    const q = new URLSearchParams(window.location.search);
+    const fromUrl = {};
+    for (const key of ["name", "email", "phone", "school"]) {
+      const v = q.get(key)?.trim();
+      if (v) fromUrl[key] = v.slice(0, 150);
+    }
+    if (COURSES.some((c) => c.id === q.get("course"))) fromUrl.courseId = q.get("course");
+    if (LOCATIONS.some((l) => l.id === q.get("location"))) fromUrl.locationId = q.get("location");
+    if (saved || Object.keys(fromUrl).length) setForm((f) => ({ ...f, ...saved, ...fromUrl }));
   }, []);
   useEffect(() => {
     try {
