@@ -45,7 +45,8 @@ export const COURSES = [
 
 // For test payments only: set NEXT_PUBLIC_BOOTCAMP_TEST_PRICE=100 to charge ₦100
 // for every location. Leave it unset in production.
-const TEST_PRICE = Number(process.env.NEXT_PUBLIC_BOOTCAMP_TEST_PRICE) || 0;
+// TEMPORARY: live test at ₦100. Change the fallback back to 0 before real students pay.
+const TEST_PRICE = Number(process.env.NEXT_PUBLIC_BOOTCAMP_TEST_PRICE) || 100;
 
 const BASE_LOCATIONS = [
   {
