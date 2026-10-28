@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /desk
+Disallow: /workspace/admin
+Disallow: /workspace/success/
+Disallow: /bootcamp/success/
+Disallow: /register/
+Disallow: /internship/success
+Disallow: /internship/attendance
+Disallow: /recovery
+
+Sitemap: https://www.web3nova.org/sitemap.xml

@@ -1,5 +1,12 @@
 import Success from "@/components/Register/Success"; // 1 import
 
+import Seo from '@/components/Seo';
+
 export default function SuccessPage() {
-  return <Success />;        // 1 export
+  return (
+    <>
+      <Seo title="Application Received" noindex />
+      <Success />
+    </>
+  );
 }

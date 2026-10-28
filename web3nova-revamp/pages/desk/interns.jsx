@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { RefreshCw, AlertCircle, User } from "lucide-react";
 import DeskLayout from "@/components/Desk/DeskLayout";
 import { deskFetch } from "@/lib/deskApi";
+import Seo from "@/components/Seo";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -33,6 +34,7 @@ export default function Interns() {
 
   return (
     <DeskLayout title="Interns">
+      <Seo title="Desk" noindex />
       <div className="flex items-center gap-3 mb-5">
         <input
           type="number"

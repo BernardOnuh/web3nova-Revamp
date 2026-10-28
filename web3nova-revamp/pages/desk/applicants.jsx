@@ -4,6 +4,7 @@ import { Check, X, Loader2, RefreshCw, AlertCircle, Eye, Trash2 } from "lucide-r
 import DeskLayout from "@/components/Desk/DeskLayout";
 import ApplicantModal from "@/components/Desk/ApplicantModal";
 import { deskFetch } from "@/lib/deskApi";
+import Seo from "@/components/Seo";
 
 export default function Applicants() {
   const thisYear = new Date().getFullYear();
@@ -73,6 +74,7 @@ export default function Applicants() {
 
   return (
     <DeskLayout title="Applicants">
+      <Seo title="Desk" noindex />
       <div className="flex items-center gap-3 mb-5">
         <input
           type="number"

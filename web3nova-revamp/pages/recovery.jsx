@@ -5,6 +5,7 @@ import { startRegistration, browserSupportsWebAuthn } from "@simplewebauthn/brow
 import Navbar from "@/components/Hero/navbar";
 import Footer from "@/components/Footer";
 import BackgroundEffects from "@/components/Services/BackgroundEffects";
+import Seo from "@/components/Seo";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://intership-server.onrender.com";
 
@@ -173,6 +174,7 @@ export default function Recovery() {
 
   return (
     <div className="relative min-h-screen bg-black text-white overflow-hidden">
+      <Seo title="Account Recovery" noindex />
       <Navbar />
       <div className="relative min-h-screen pt-32 md:pt-40 pb-20" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
         <BackgroundEffects />

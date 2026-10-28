@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { motion } from "framer-motion";
 import { Loader2, LogIn, AlertCircle } from "lucide-react";
 import { login } from "@/lib/deskApi";
+import Seo from "@/components/Seo";
 
 export default function DeskLogin() {
   const router = useRouter();
@@ -27,6 +28,7 @@ export default function DeskLogin() {
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-6">
+      <Seo title="Desk" noindex />
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}

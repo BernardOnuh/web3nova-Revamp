@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { RefreshCw, AlertCircle, Clock, CalendarDays } from "lucide-react";
 import DeskLayout from "@/components/Desk/DeskLayout";
 import { deskFetch } from "@/lib/deskApi";
+import Seo from "@/components/Seo";
 
 export default function AttendanceSummary() {
   const thisYear = new Date().getFullYear();
@@ -39,6 +40,7 @@ export default function AttendanceSummary() {
 
   return (
     <DeskLayout title="Attendance">
+      <Seo title="Desk" noindex />
       <div className="flex items-center gap-3 mb-5">
         <input
           type="number"
