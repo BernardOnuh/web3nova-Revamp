@@ -1,7 +1,7 @@
 // Public: how many seats are free for a pass, or which event start times are taken on a day.
 import {
   MAX_DAYS_AHEAD, SEAT_CAPACITY, addDays, earliestSeatStart, eventStartHours, eventWindow,
-  findDuration, findEventOption, isIsoDate, lagosToday, seatEndDate,
+  findDuration, findEventOption, hourlyStartHours, isIsoDate, lagosToday, seatEndDate,
 } from "@/lib/workspace";
 import { eventsOn, seatsFree } from "@/lib/workspaceService";
 
@@ -30,7 +30,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Pick a valid date" });
     }
     const free = await seatsFree(date, seatEndDate(date, duration));
-    return res.status(200).json({ free, capacity: SEAT_CAPACITY, endDate: seatEndDate(date, duration) });
+    const startHours = findDuration(duration).hourly ? hourlyStartHours(date) : undefined;
+    return res.status(200).json({ free, capacity: SEAT_CAPACITY, endDate: seatEndDate(date, duration), startHours });
   } catch (err) {
     console.error("[workspace/availability]", err);
     return res.status(503).json({ error: "Could not check availability right now" });

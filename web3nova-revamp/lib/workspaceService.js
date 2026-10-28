@@ -198,7 +198,8 @@ export async function sendDueReminders() {
   // Someone who already bought a pass starting the next day has renewed, so skip them.
   const finalRows = await sql`
     SELECT * FROM ws_bookings b
-    WHERE b.kind = 'seat' AND b.status = 'paid' AND b.end_date = ${today}::date AND b.reminded_final_at IS NULL
+    WHERE b.kind = 'seat' AND b.status = 'paid' AND b.duration <> 'hour'
+      AND b.end_date = ${today}::date AND b.reminded_final_at IS NULL
       AND NOT EXISTS (
         SELECT 1 FROM ws_bookings n WHERE n.kind = 'seat' AND n.status = 'paid'
           AND lower(n.email) = lower(b.email) AND n.start_date = b.end_date + 1)`;
@@ -246,7 +247,8 @@ export async function todayStats() {
       coalesce(sum(program_fee), 0)::int AS all_time
     FROM ws_bookings WHERE status = 'paid'`;
   const [expiring] = await sql`
-    SELECT count(*)::int AS n FROM ws_bookings WHERE kind = 'seat' AND status = 'paid' AND end_date = ${today}::date`;
+    SELECT count(*)::int AS n FROM ws_bookings
+    WHERE kind = 'seat' AND status = 'paid' AND duration <> 'hour' AND end_date = ${today}::date`;
   const events = await sql`
     SELECT * FROM ws_bookings WHERE kind = 'event' AND status = 'paid' AND start_date = ${today}::date ORDER BY event_start`;
   const [coupons] = await sql`SELECT count(*)::int AS n FROM ws_coupons WHERE used_at IS NULL`;
@@ -272,6 +274,7 @@ export async function listBookings(limit = 1000) {
 export async function expiringOn(date) {
   const sql = await db();
   const rows = await sql`
-    SELECT * FROM ws_bookings WHERE kind = 'seat' AND status = 'paid' AND end_date = ${date}::date ORDER BY name`;
+    SELECT * FROM ws_bookings
+    WHERE kind = 'seat' AND status = 'paid' AND duration <> 'hour' AND end_date = ${date}::date ORDER BY name`;
   return rows.map(rowToBooking);
 }

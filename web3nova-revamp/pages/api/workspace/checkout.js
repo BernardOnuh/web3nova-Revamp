@@ -1,6 +1,7 @@
 import {
   EVENT_SPACE, MAX_DAYS_AHEAD, SPACE_NAME, addDays, describeBooking, earliestSeatStart, eventStartHours,
-  eventWindow, findDuration, findEventOption, findPlan, isIsoDate, lagosToday, priceBreakdown, priceFor, seatEndDate,
+  eventWindow, findDuration, findEventOption, findPlan, hourlyStartHours, isIsoDate, lagosToday, maxHoursFrom,
+  priceBreakdown, priceFor, seatEndDate,
 } from "@/lib/workspace";
 import { initTransaction } from "@/lib/monnify";
 import { normalizeVoucher, voucherPrice } from "@/lib/vouchers";
@@ -52,7 +53,7 @@ export default async function handler(req, res) {
     } else {
       const plan = findPlan(req.body?.plan);
       const duration = findDuration(req.body?.duration);
-      if (!plan || !duration) return res.status(400).json({ error: "Please pick a plan." });
+      if (!plan || !duration || !plan.prices[duration.id]) return res.status(400).json({ error: "Please pick a plan." });
       if (date < earliestSeatStart()) {
         return res.status(400).json({ error: "That date has passed. Passes for today end at 8pm." });
       }
@@ -67,6 +68,16 @@ export default async function handler(req, res) {
         }
       }
       booking = { kind, plan: plan.id, duration: duration.id, start_date: date, end_date: end, coupon };
+      if (duration.hourly) {
+        const hour = Number(req.body?.startHour);
+        const hours = Number(req.body?.hours);
+        if (!hourlyStartHours(date).includes(hour) || !Number.isInteger(hours) || hours < 1 || hours > maxHoursFrom(hour)) {
+          if (coupon) await releaseCoupon(coupon, ref);
+          return res.status(400).json({ error: "Please pick a start time and how many hours (ending by 8pm)." });
+        }
+        const w = eventWindow(date, hour, hours);
+        booking = { ...booking, event_start: w.start, event_end: w.end, hours };
+      }
     }
 
     let basePrice = priceFor(booking);

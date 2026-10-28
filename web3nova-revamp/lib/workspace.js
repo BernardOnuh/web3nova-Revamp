@@ -12,6 +12,7 @@ export const CLOSE_MINUTES = 20 * 60; // seat passes end at 8pm, Lagos time
 export const MAX_DAYS_AHEAD = 90;
 
 export const DURATIONS = [
+  { id: "hour", title: "Hourly", days: 1, unit: "hour", hourly: true },
   { id: "day", title: "Daily", days: 1, unit: "day" },
   { id: "week", title: "Weekly", days: 7, unit: "week" },
   { id: "month", title: "Monthly", days: 30, unit: "month" },
@@ -23,7 +24,7 @@ export const SEAT_PLANS = [
     title: "Basic",
     short: "A seat in the shared workspace.",
     features: ["Shared workspace seat", `Open ${OPEN_LABEL} – ${CLOSE_LABEL}`],
-    prices: { day: 2000, week: 10000, month: 37500 },
+    prices: { hour: 500, day: 2000, week: 10000, month: 37500 }, // hour = per hour
   },
   {
     id: "premium",
@@ -55,7 +56,11 @@ export const EVENT_SPACE = {
   lastEndHour: 23,
 };
 
+// Hourly passes start on the hour and must end by closing time.
+export const HOURLY = { firstStartHour: 8, lastEndHour: 20 };
+
 export const findPlan = (id) => SEAT_PLANS.find((p) => p.id === id);
+export const planDurations = (plan) => DURATIONS.filter((d) => plan?.prices[d.id]);
 export const findDuration = (id) => DURATIONS.find((d) => d.id === id);
 export const findEventOption = (id) => EVENT_SPACE.options.find((o) => o.id === id);
 
@@ -66,6 +71,17 @@ export function eventStartHours(optionId) {
   for (let h = EVENT_SPACE.firstStartHour; h + opt.hours <= EVENT_SPACE.lastEndHour; h++) hours.push(h);
   return hours;
 }
+
+// Start hours still bookable on `date` (past hours are dropped for today).
+export function hourlyStartHours(date) {
+  const hours = [];
+  for (let h = HOURLY.firstStartHour; h < HOURLY.lastEndHour; h++) {
+    if (new Date(eventWindow(date, h, 0).start).getTime() > Date.now()) hours.push(h);
+  }
+  return hours;
+}
+
+export const maxHoursFrom = (startHour) => HOURLY.lastEndHour - startHour;
 
 // ---- Dates. Nigeria is UTC+1 all year (no daylight saving). ----
 const LAGOS_OFFSET_MS = 60 * 60 * 1000;
@@ -120,10 +136,13 @@ export function formatTime(iso) {
   }).replace(" ", "");
 }
 
-export function priceFor({ kind, plan, duration }) {
+export function priceFor({ kind, plan, duration, hours }) {
   if (kind === "event") return findEventOption(duration)?.price || 0;
-  return findPlan(plan)?.prices[duration] || 0;
+  const price = findPlan(plan)?.prices[duration] || 0;
+  return duration === "hour" ? price * (Number(hours) || 0) : price;
 }
+
+const hoursBetween = (start, end) => Math.round((new Date(end) - new Date(start)) / 3600e3);
 
 // Human labels for a booking row (from the database or the checkout form).
 export function describeBooking(b) {
@@ -139,6 +158,14 @@ export function describeBooking(b) {
   }
   const plan = findPlan(b.plan);
   const dur = findDuration(b.duration);
+  if (b.duration === "hour" && b.event_start) {
+    const n = hoursBetween(b.event_start, b.event_end);
+    return {
+      planTitle: plan?.title || b.plan,
+      durationTitle: `Hourly (${n} hr${n === 1 ? "" : "s"})`,
+      when: `${formatDate(b.start_date)}, ${formatTime(b.event_start)} – ${formatTime(b.event_end)}`,
+    };
+  }
   const range =
     b.start_date === b.end_date
       ? formatDate(b.start_date)

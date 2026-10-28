@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Armchair, Monitor, HeartHandshake, PartyPopper, User, Mail, Phone, Ticket, CalendarDays, Clock,
+  Minus, Plus, Armchair, Monitor, HeartHandshake, PartyPopper, User, Mail, Phone, Ticket, CalendarDays, Clock,
   ArrowRight, Loader2, Check, Lock, ShieldCheck, MailCheck, Wifi, Users, BellRing,
 } from "lucide-react";
 import {
   DURATIONS, EVENT_SPACE, MAX_DAYS_AHEAD, SEAT_CAPACITY, SEAT_PLANS, CLOSE_LABEL, OPEN_LABEL,
-  addDays, earliestSeatStart, formatDate, formatHour, formatNaira, lagosToday, priceBreakdown, seatEndDate,
+  addDays, earliestSeatStart, formatDate, formatHour, formatNaira, lagosToday, maxHoursFrom, planDurations,
+  priceBreakdown, seatEndDate,
 } from "@/lib/workspace";
 import { BootcampBackground, fontVars } from "@/components/Bootcamp/theme";
 
@@ -17,7 +18,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DISPLAY = "font-[family-name:var(--font-display)]";
 
 const SPACES = [
-  ...SEAT_PLANS.map((p) => ({ ...p, kind: "seat", from: p.prices.day, per: "/day" })),
+  ...SEAT_PLANS.map((p) => ({ ...p, kind: "seat", from: p.prices.hour || p.prices.day, per: p.prices.hour ? "/hr" : "/day" })),
   { ...EVENT_SPACE, kind: "event", from: EVENT_SPACE.options[0].price, per: "/6 hrs", features: ["Its own room", "6 or 12 hours"] },
 ];
 const SPACE_STYLE = {
@@ -84,7 +85,7 @@ function Chip({ active, onClick, color = "#4A90E2", children, disabled }) {
 
 export default function WorkspaceBooking() {
   const [form, setForm] = useState({
-    space: "", duration: "", date: "", startHour: "", name: "", email: "", phone: "", coupon: "", voucher: "",
+    space: "", duration: "", date: "", startHour: "", hours: 1, name: "", email: "", phone: "", coupon: "", voucher: "",
   });
   const [touched, setTouched] = useState({});
   const [loading, setLoading] = useState(false);
@@ -116,7 +117,7 @@ export default function WorkspaceBooking() {
     const space = SPACES.find((s) => s.id === q.get("plan"));
     if (space) {
       fromUrl.space = space.id;
-      const ok = space.kind === "event" ? EVENT_SPACE.options.some((o) => o.id === q.get("duration")) : DURATIONS.some((d) => d.id === q.get("duration"));
+      const ok = space.kind === "event" ? EVENT_SPACE.options.some((o) => o.id === q.get("duration")) : !!space.prices[q.get("duration")];
       if (ok) fromUrl.duration = q.get("duration");
     }
     const merged = { ...(saved || {}), ...fromUrl };
@@ -137,15 +138,22 @@ export default function WorkspaceBooking() {
   const durationOptions = isEvent
     ? EVENT_SPACE.options.map((o) => ({ id: o.id, title: o.title, price: o.price }))
     : space
-      ? DURATIONS.map((d) => {
+      ? planDurations(space).map((d) => {
           const discounted = voucher.state === "ok" && voucher.plan === space.id ? voucher.prices[d.id] : undefined;
-          return { id: d.id, title: d.title, price: discounted || space.prices[d.id], full: discounted ? space.prices[d.id] : null, note: d.days > 1 ? `${d.days} days` : "1 day" };
+          return {
+            id: d.id, title: d.title, hourly: !!d.hourly,
+            price: discounted || space.prices[d.id], full: discounted ? space.prices[d.id] : null,
+            note: d.hourly ? "per hour" : d.days > 1 ? `${d.days} days` : "1 day",
+          };
         })
       : [];
   const canUseVoucher = space?.kind === "seat" && !space.needsCoupon;
   const duration = durationOptions.find((d) => d.id === form.duration);
   const voucherApplied = canUseVoucher && !!duration?.full;
-  const breakdown = duration && priceBreakdown(duration.price);
+  const isHourly = !!duration?.hourly;
+  const needsTime = isEvent || isHourly;
+  const hours = Math.max(1, Number(form.hours) || 1);
+  const breakdown = duration && priceBreakdown(isHourly ? duration.price * hours : duration.price);
   const minDate = isEvent ? lagosToday() : earliestSeatStart();
   const maxDate = addDays(lagosToday(), MAX_DAYS_AHEAD);
   const dateOk = form.date && form.date >= minDate && form.date <= maxDate;
@@ -168,10 +176,17 @@ export default function WorkspaceBooking() {
 
   // Drop a start time that's no longer free.
   useEffect(() => {
-    if (isEvent && avail.startHours && form.startHour !== "" && !avail.startHours.includes(Number(form.startHour))) {
+    if (needsTime && avail.startHours && form.startHour !== "" && !avail.startHours.includes(Number(form.startHour))) {
       setForm((f) => ({ ...f, startHour: "" }));
     }
-  }, [avail.startHours, isEvent, form.startHour]);
+  }, [avail.startHours, needsTime, form.startHour]);
+
+  // Hourly passes must end by closing time.
+  useEffect(() => {
+    if (isHourly && form.startHour !== "" && hours > maxHoursFrom(Number(form.startHour))) {
+      setForm((f) => ({ ...f, hours: maxHoursFrom(Number(f.startHour)) }));
+    }
+  }, [isHourly, form.startHour, hours]);
 
   // Check the coupon as it's typed.
   useEffect(() => {
@@ -215,7 +230,7 @@ export default function WorkspaceBooking() {
     };
   }, [form.voucher, canUseVoucher, space?.id]);
 
-  const timeChosen = !isEvent || (form.startHour !== "" && avail.startHours?.includes(Number(form.startHour)));
+  const timeChosen = !needsTime || (form.startHour !== "" && avail.startHours?.includes(Number(form.startHour)));
   const seatsLeft = !isEvent && typeof avail.free === "number" ? avail.free : null;
   const whenDone = !!(dateOk && timeChosen && !avail.loading && !avail.error && (isEvent || seatsLeft > 0));
 
@@ -230,7 +245,7 @@ export default function WorkspaceBooking() {
   const missing = !space
     ? "Pick a space"
     : !duration
-      ? isEvent ? "Pick 6 or 12 hours" : "Pick daily, weekly or monthly"
+      ? isEvent ? "Pick 6 or 12 hours" : "Pick how long"
       : !dateOk
         ? "Pick a date"
         : !timeChosen
@@ -255,7 +270,7 @@ export default function WorkspaceBooking() {
       ...f,
       space: id,
       // Keep daily/weekly/monthly when switching between seat plans.
-      duration: next.kind === "event" ? (EVENT_SPACE.options.some((o) => o.id === f.duration) ? f.duration : "") : DURATIONS.some((d) => d.id === f.duration) ? f.duration : "",
+      duration: next.kind === "event" ? (EVENT_SPACE.options.some((o) => o.id === f.duration) ? f.duration : "") : next.prices[f.duration] ? f.duration : "",
       startHour: "",
     }));
     if (!form.duration) scrollTo(durationRef);
@@ -288,6 +303,7 @@ export default function WorkspaceBooking() {
           duration: duration.id,
           date: form.date,
           startHour: form.startHour === "" ? undefined : Number(form.startHour),
+          hours: isHourly ? hours : undefined,
           name: form.name,
           email: form.email,
           phone: form.phone,
@@ -305,13 +321,17 @@ export default function WorkspaceBooking() {
   };
 
   const payLabel = breakdown ? `Pay ${formatNaira(breakdown.total)}` : "Continue";
-  const endDate = !isEvent && duration && dateOk ? seatEndDate(form.date, duration.id) : null;
+  const endDate = !isEvent && !isHourly && duration && dateOk ? seatEndDate(form.date, duration.id) : null;
   const whenText = !dateOk
     ? "—"
     : isEvent
       ? form.startHour !== ""
         ? `${formatDate(form.date)}, ${formatHour(Number(form.startHour))} – ${formatHour(Number(form.startHour) + EVENT_SPACE.options.find((o) => o.id === duration?.id)?.hours || 0)}`
         : formatDate(form.date)
+      : isHourly
+        ? form.startHour !== ""
+          ? `${formatDate(form.date)}, ${formatHour(Number(form.startHour))} – ${formatHour(Number(form.startHour) + hours)}`
+          : formatDate(form.date)
       : endDate && endDate !== form.date
         ? `${formatDate(form.date, { year: false })} – ${formatDate(endDate, { year: false })}`
         : formatDate(form.date);
@@ -345,7 +365,7 @@ export default function WorkspaceBooking() {
             {[
               [String(SEAT_CAPACITY), "seats"],
               ["7:30", "to 8pm"],
-              [`₦${SEAT_PLANS[0].prices.day / 1000}k`, "per day"],
+              [formatNaira(SEAT_PLANS[0].prices.hour), "per hour"],
             ].map(([big, small]) => (
               <div key={small} className="py-3">
                 <p className={`${DISPLAY} text-2xl font-bold leading-none`}>{big}</p>
@@ -398,13 +418,15 @@ export default function WorkspaceBooking() {
               <StepHeading n={2} title={isEvent ? "How long is your event?" : "How long do you need it?"} done={!!duration}
                 hint={space ? undefined : "Pick a space first."} />
               {space && (
-                <div className={`grid gap-2.5 sm:gap-3 ${isEvent ? "grid-cols-2" : "grid-cols-3"}`}>
+                <div className={`grid gap-2.5 sm:gap-3 ${isEvent ? "grid-cols-2" : durationOptions.length === 4 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
                   {durationOptions.map((d) => (
                     <Chip key={d.id} active={form.duration === d.id} onClick={() => pickDuration(d.id)} color={style.color}>
                       <p className={`${DISPLAY} font-semibold text-[15px] sm:text-lg leading-tight pr-5`}>{d.title}</p>
                       {d.note && <p className="text-[11px] sm:text-xs text-gray-400 mt-0.5">{d.note}</p>}
                       {d.full && <p className="mt-2 text-xs text-gray-500 line-through leading-none">{formatNaira(d.full)}</p>}
-                      <p className={`${DISPLAY} ${d.full ? "mt-1" : "mt-3"} text-lg sm:text-2xl font-bold text-yellow-400 leading-none`}>{formatNaira(d.price)}</p>
+                      <p className={`${DISPLAY} ${d.full ? "mt-1" : "mt-3"} text-lg sm:text-2xl font-bold text-yellow-400 leading-none`}>
+                        {formatNaira(d.price)}{d.hourly && <span className="text-xs font-medium text-gray-400">/hr</span>}
+                      </p>
                     </Chip>
                   ))}
                 </div>
@@ -432,11 +454,11 @@ export default function WorkspaceBooking() {
 
             {/* Step 3: Date / time */}
             <section ref={dateRef} className="scroll-mt-24">
-              <StepHeading n={3} title={isEvent ? "Pick a date and start time" : "When do you start?"} done={whenDone}
-                hint={!isEvent && duration ? `Passes run ${OPEN_LABEL} – ${CLOSE_LABEL} each day.` : undefined} />
+              <StepHeading n={3} title={needsTime ? "Pick a date and start time" : "When do you start?"} done={whenDone}
+                hint={isHourly ? `Hourly passes end by ${CLOSE_LABEL}.` : !isEvent && duration ? `Passes run ${OPEN_LABEL} – ${CLOSE_LABEL} each day.` : undefined} />
               {duration && (
                 <div className={`${glass} rounded-3xl p-4 sm:p-6 space-y-4`}>
-                  <Field icon={CalendarDays} label={isEvent ? "Event date" : "Start date"} type="date" name="date"
+                  <Field icon={CalendarDays} label={isEvent ? "Event date" : isHourly ? "Date" : "Start date"} type="date" name="date"
                     value={form.date} min={minDate} max={maxDate} onChange={handleChange}
                     error={form.date && !dateOk ? `Pick a date from ${formatDate(minDate)}` : null} />
 
@@ -458,7 +480,7 @@ export default function WorkspaceBooking() {
                     </div>
                   )}
 
-                  {dateOk && isEvent && (
+                  {dateOk && needsTime && (
                     <div>
                       <span className="block text-sm font-medium mb-2 text-gray-200">Start time</span>
                       {avail.loading ? (
@@ -470,7 +492,7 @@ export default function WorkspaceBooking() {
                           {avail.startHours.map((h) => {
                             const active = String(form.startHour) === String(h);
                             return (
-                              <button type="button" key={h} onClick={() => { set("startHour", h); scrollTo(detailsRef); }} aria-pressed={active}
+                              <button type="button" key={h} onClick={() => { set("startHour", h); if (isEvent) scrollTo(detailsRef); }} aria-pressed={active}
                                 className={`flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border px-2 py-2.5 text-sm font-semibold transition ${active ? "text-black" : "border-white/10 bg-black/30 text-gray-200 hover:border-white/30"}`}
                                 style={active ? { backgroundColor: style.color, borderColor: style.color } : undefined}>
                                 <Clock className="hidden sm:block w-3.5 h-3.5 shrink-0" />{formatHour(h)}
@@ -479,8 +501,30 @@ export default function WorkspaceBooking() {
                           })}
                         </div>
                       ) : (
-                        <span className="text-sm text-red-400">The event space is fully booked that day. Try another date.</span>
+                        <span className="text-sm text-red-400">
+                          {isEvent ? "The event space is fully booked that day." : "No start times left today."} Try another date.
+                        </span>
                       )}
+                    </div>
+                  )}
+
+                  {dateOk && isHourly && form.startHour !== "" && (
+                    <div>
+                      <span className="block text-sm font-medium mb-2 text-gray-200">How many hours?</span>
+                      <div className="flex items-center gap-3">
+                        <button type="button" aria-label="Fewer hours" disabled={hours <= 1} onClick={() => set("hours", hours - 1)}
+                          className="w-11 h-11 rounded-xl border border-white/10 bg-black/30 flex items-center justify-center disabled:opacity-30">
+                          <Minus className="w-5 h-5" />
+                        </button>
+                        <span className={`${DISPLAY} text-2xl font-bold w-24 text-center`}>{hours} hr{hours === 1 ? "" : "s"}</span>
+                        <button type="button" aria-label="More hours" disabled={hours >= maxHoursFrom(Number(form.startHour))} onClick={() => set("hours", hours + 1)}
+                          className="w-11 h-11 rounded-xl border border-white/10 bg-black/30 flex items-center justify-center disabled:opacity-30">
+                          <Plus className="w-5 h-5" />
+                        </button>
+                        <span className="text-sm text-gray-300">
+                          {formatHour(Number(form.startHour))} – {formatHour(Number(form.startHour) + hours)}
+                        </span>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -538,7 +582,7 @@ export default function WorkspaceBooking() {
             <h3 className={`${DISPLAY} text-lg font-bold mb-5`}>Web3Nova Workspace</h3>
             <dl className="space-y-3 text-sm mb-6">
               <div className="flex justify-between gap-4"><dt className="text-gray-400">Space</dt><dd className="text-right font-medium">{space?.title || "—"}</dd></div>
-              <div className="flex justify-between gap-4"><dt className="text-gray-400">Plan</dt><dd className="text-right font-medium">{duration?.title || "—"}</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-gray-400">Plan</dt><dd className="text-right font-medium">{duration ? `${duration.title}${isHourly ? ` (${hours} hr${hours === 1 ? "" : "s"})` : ""}` : "—"}</dd></div>
               {voucherApplied && <div className="flex justify-between gap-4"><dt className="text-gray-400">Voucher</dt><dd className="text-right font-medium text-green-300">{form.voucher.trim()} (−{formatNaira(duration.full - duration.price)})</dd></div>}
               <div className="flex justify-between gap-4"><dt className="text-gray-400">When</dt><dd className="text-right font-medium">{whenText}</dd></div>
             </dl>
@@ -569,7 +613,7 @@ export default function WorkspaceBooking() {
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-medium text-gray-200 truncate">{missing || `${space.title} · ${duration.title}`}</p>
                 <p className={`${DISPLAY} text-xl font-bold text-yellow-400 leading-tight`}>
-                  {breakdown ? formatNaira(breakdown.total) : <>from {formatNaira(SEAT_PLANS[0].prices.day)}</>}
+                  {breakdown ? formatNaira(breakdown.total) : <>from {formatNaira(SEAT_PLANS[0].prices.hour)}/hr</>}
                 </p>
                 {breakdown && (
                   <p className="text-[11px] text-gray-300 leading-tight whitespace-nowrap">
