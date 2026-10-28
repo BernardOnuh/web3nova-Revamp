@@ -84,13 +84,14 @@ function Chip({ active, onClick, color = "#4A90E2", children, disabled }) {
 
 export default function WorkspaceBooking() {
   const [form, setForm] = useState({
-    space: "", duration: "", date: "", startHour: "", name: "", email: "", phone: "", coupon: "",
+    space: "", duration: "", date: "", startHour: "", name: "", email: "", phone: "", coupon: "", voucher: "",
   });
   const [touched, setTouched] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [avail, setAvail] = useState({ loading: false });
   const [coupon, setCoupon] = useState({ state: "idle" }); // idle | checking | ok | bad
+  const [voucher, setVoucher] = useState({ state: "idle" }); // idle | checking | ok | bad
   const spaceRef = useRef(null);
   const durationRef = useRef(null);
   const dateRef = useRef(null);
@@ -110,6 +111,8 @@ export default function WorkspaceBooking() {
       const v = q.get(key)?.trim();
       if (v) fromUrl[key] = v.slice(0, 120);
     }
+    // Shareable promo links: /workspace?plan=basic&duration=day&voucher=RESUMPTION
+    if (q.get("voucher")) fromUrl.voucher = q.get("voucher").trim().toUpperCase().slice(0, 30);
     const space = SPACES.find((s) => s.id === q.get("plan"));
     if (space) {
       fromUrl.space = space.id;
@@ -134,9 +137,14 @@ export default function WorkspaceBooking() {
   const durationOptions = isEvent
     ? EVENT_SPACE.options.map((o) => ({ id: o.id, title: o.title, price: o.price }))
     : space
-      ? DURATIONS.map((d) => ({ id: d.id, title: d.title, price: space.prices[d.id], note: d.days > 1 ? `${d.days} days` : "1 day" }))
+      ? DURATIONS.map((d) => {
+          const discounted = voucher.state === "ok" && voucher.plan === space.id ? voucher.prices[d.id] : undefined;
+          return { id: d.id, title: d.title, price: discounted || space.prices[d.id], full: discounted ? space.prices[d.id] : null, note: d.days > 1 ? `${d.days} days` : "1 day" };
+        })
       : [];
+  const canUseVoucher = space?.kind === "seat" && !space.needsCoupon;
   const duration = durationOptions.find((d) => d.id === form.duration);
+  const voucherApplied = canUseVoucher && !!duration?.full;
   const breakdown = duration && priceBreakdown(duration.price);
   const minDate = isEvent ? lagosToday() : earliestSeatStart();
   const maxDate = addDays(lagosToday(), MAX_DAYS_AHEAD);
@@ -185,6 +193,27 @@ export default function WorkspaceBooking() {
       ctrl.abort();
     };
   }, [form.coupon, space?.needsCoupon]);
+
+  // Check the voucher as it's typed.
+  useEffect(() => {
+    const code = form.voucher.trim();
+    if (!canUseVoucher || code.length < 3) {
+      setVoucher({ state: "idle" });
+      return;
+    }
+    setVoucher({ state: "checking" });
+    const ctrl = new AbortController();
+    const t = setTimeout(() => {
+      fetch(`/api/workspace/voucher?code=${encodeURIComponent(code)}&plan=${space.id}`, { signal: ctrl.signal })
+        .then((r) => r.json())
+        .then((d) => setVoucher(d.valid ? { state: "ok", ...d } : { state: "bad", message: d.message || d.error }))
+        .catch((err) => err.name !== "AbortError" && setVoucher({ state: "bad", message: "Could not check the code" }));
+    }, 400);
+    return () => {
+      clearTimeout(t);
+      ctrl.abort();
+    };
+  }, [form.voucher, canUseVoucher, space?.id]);
 
   const timeChosen = !isEvent || (form.startHour !== "" && avail.startHours?.includes(Number(form.startHour)));
   const seatsLeft = !isEvent && typeof avail.free === "number" ? avail.free : null;
@@ -263,6 +292,7 @@ export default function WorkspaceBooking() {
           email: form.email,
           phone: form.phone,
           coupon: space.needsCoupon ? form.coupon : undefined,
+          voucher: voucherApplied ? form.voucher : undefined,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -373,9 +403,29 @@ export default function WorkspaceBooking() {
                     <Chip key={d.id} active={form.duration === d.id} onClick={() => pickDuration(d.id)} color={style.color}>
                       <p className={`${DISPLAY} font-semibold text-[15px] sm:text-lg leading-tight pr-5`}>{d.title}</p>
                       {d.note && <p className="text-[11px] sm:text-xs text-gray-400 mt-0.5">{d.note}</p>}
-                      <p className={`${DISPLAY} mt-3 text-lg sm:text-2xl font-bold text-yellow-400 leading-none`}>{formatNaira(d.price)}</p>
+                      {d.full && <p className="mt-2 text-xs text-gray-500 line-through leading-none">{formatNaira(d.full)}</p>}
+                      <p className={`${DISPLAY} ${d.full ? "mt-1" : "mt-3"} text-lg sm:text-2xl font-bold text-yellow-400 leading-none`}>{formatNaira(d.price)}</p>
                     </Chip>
                   ))}
+                </div>
+              )}
+              {canUseVoucher && (
+                <div className="mt-4 max-w-sm">
+                  <Field icon={Ticket} label="Voucher code (optional)" name="voucher" value={form.voucher}
+                    onChange={(e) => set("voucher", e.target.value.toUpperCase())}
+                    autoCapitalize="characters" autoComplete="off" placeholder="Enter voucher code"
+                    error={voucher.state === "bad" && voucher.message}>
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2">
+                      {voucher.state === "checking" && <Loader2 className="w-5 h-5 animate-spin text-gray-400" />}
+                      {voucher.state === "ok" && <Check className="w-5 h-5 text-green-400" strokeWidth={3} />}
+                    </span>
+                  </Field>
+                  {voucher.state === "ok" && (
+                    <p className="text-xs text-green-300 mt-1.5">
+                      {voucher.code} applied: {Object.entries(voucher.prices).map(([id, price]) => `${DURATIONS.find((x) => x.id === id)?.title} ${formatNaira(price)}`).join(", ")}
+                      {duration && !voucherApplied && ` (not for ${duration.title})`}
+                    </p>
+                  )}
                 </div>
               )}
             </section>
@@ -489,6 +539,7 @@ export default function WorkspaceBooking() {
             <dl className="space-y-3 text-sm mb-6">
               <div className="flex justify-between gap-4"><dt className="text-gray-400">Space</dt><dd className="text-right font-medium">{space?.title || "—"}</dd></div>
               <div className="flex justify-between gap-4"><dt className="text-gray-400">Plan</dt><dd className="text-right font-medium">{duration?.title || "—"}</dd></div>
+              {voucherApplied && <div className="flex justify-between gap-4"><dt className="text-gray-400">Voucher</dt><dd className="text-right font-medium text-green-300">{form.voucher.trim()} (−{formatNaira(duration.full - duration.price)})</dd></div>}
               <div className="flex justify-between gap-4"><dt className="text-gray-400">When</dt><dd className="text-right font-medium">{whenText}</dd></div>
             </dl>
             {breakdown && (

@@ -139,7 +139,7 @@ export default function WorkspaceAdmin() {
         if (filter !== "all" && b.state !== filter) return false;
         return true;
       })
-      .filter((b) => !q || [b.name, b.email, b.phone, b.ref, b.coupon].some((v) => String(v || "").toLowerCase().includes(q)));
+      .filter((b) => !q || [b.name, b.email, b.phone, b.ref, b.coupon, b.voucher].some((v) => String(v || "").toLowerCase().includes(q)));
   }, [data, filter, query, today]);
 
   const s = data?.stats;
@@ -245,7 +245,7 @@ export default function WorkspaceAdmin() {
                         </p>
                       </div>
                       <div className="min-w-0 text-sm">
-                        <p>{b.d.planTitle} · {b.d.durationTitle}{b.coupon && <span className="ml-2 text-xs text-pink-300">{b.coupon}</span>}</p>
+                        <p>{b.d.planTitle} · {b.d.durationTitle}{b.coupon && <span className="ml-2 text-xs text-pink-300">{b.coupon}</span>}{b.voucher && <span className="ml-2 text-xs text-green-300">{b.voucher}</span>}</p>
                         <p className="text-xs text-zinc-400">{b.d.when}</p>
                       </div>
                       <div className="flex md:flex-col items-center md:items-end gap-2 justify-between">

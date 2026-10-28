@@ -120,11 +120,11 @@ export async function insertPendingBooking(b) {
   await sql`
     INSERT INTO ws_bookings
       (ref, kind, plan, duration, name, email, phone, start_date, end_date, event_start, event_end,
-       coupon, program_fee, service_charge, total)
+       coupon, voucher, program_fee, service_charge, total)
     VALUES
       (${b.ref}, ${b.kind}, ${b.plan}, ${b.duration}, ${b.name}, ${b.email}, ${b.phone},
        ${b.start_date}::date, ${b.end_date}::date, ${b.event_start || null}, ${b.event_end || null},
-       ${b.coupon || null}, ${b.program_fee}, ${b.service_charge}, ${b.total})`;
+       ${b.coupon || null}, ${b.voucher || null}, ${b.program_fee}, ${b.service_charge}, ${b.total})`;
 }
 
 export async function deleteBooking(ref) {
@@ -145,7 +145,7 @@ function adminSummary(b) {
     `${escapeHtml(b.name)} · ${escapeHtml(b.phone)}`,
     `${escapeHtml(d.planTitle)} – ${escapeHtml(d.durationTitle)}`,
     escapeHtml(d.when),
-    `Paid ${formatNaira(b.amount_paid ?? b.total)}${b.coupon ? ` · coupon ${escapeHtml(b.coupon)}` : ""}`,
+    `Paid ${formatNaira(b.amount_paid ?? b.total)}${b.coupon ? ` · coupon ${escapeHtml(b.coupon)}` : ""}${b.voucher ? ` · voucher ${escapeHtml(b.voucher)}` : ""}`,
   ].join("\n");
 }
 

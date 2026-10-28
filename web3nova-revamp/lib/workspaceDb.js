@@ -37,6 +37,7 @@ async function migrate(sql) {
       reminded_early_at timestamptz,
       reminded_final_at timestamptz
     )`;
+  await sql`ALTER TABLE ws_bookings ADD COLUMN IF NOT EXISTS voucher text`;
   await sql`CREATE INDEX IF NOT EXISTS ws_bookings_dates ON ws_bookings (kind, start_date, end_date)`;
   await sql`CREATE INDEX IF NOT EXISTS ws_bookings_email ON ws_bookings (email)`;
   await sql`

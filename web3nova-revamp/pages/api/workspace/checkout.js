@@ -3,6 +3,7 @@ import {
   eventWindow, findDuration, findEventOption, findPlan, isIsoDate, lagosToday, priceBreakdown, priceFor, seatEndDate,
 } from "@/lib/workspace";
 import { initTransaction } from "@/lib/monnify";
+import { normalizeVoucher, voucherPrice } from "@/lib/vouchers";
 import {
   deleteBooking, eventClashes, insertPendingBooking, newReference, normalizeCoupon, releaseCoupon,
   reserveCoupon, seatsFree,
@@ -68,7 +69,19 @@ export default async function handler(req, res) {
       booking = { kind, plan: plan.id, duration: duration.id, start_date: date, end_date: end, coupon };
     }
 
-    const { price, fee, total } = priceBreakdown(priceFor(booking));
+    let basePrice = priceFor(booking);
+    const voucher = kind === "seat" ? normalizeVoucher(req.body?.voucher) : "";
+    if (voucher) {
+      const discounted = voucherPrice(voucher, booking.plan, booking.duration);
+      if (!discounted) {
+        if (coupon) await releaseCoupon(coupon, ref);
+        return res.status(400).json({ error: "That voucher code doesn't apply to this plan." });
+      }
+      basePrice = discounted;
+      booking.voucher = voucher;
+    }
+
+    const { price, fee, total } = priceBreakdown(basePrice);
     booking = { ...booking, ref, name, email, phone, program_fee: price, service_charge: fee, total };
     await insertPendingBooking(booking);
   } catch (err) {

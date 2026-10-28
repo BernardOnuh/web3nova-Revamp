@@ -103,6 +103,7 @@ function workspaceRows(b) {
     ["Plan", d.durationTitle],
     ["When", d.when],
     ...(b.coupon ? [["Coupon", b.coupon]] : []),
+    ...(b.voucher ? [["Voucher", b.voucher]] : []),
     ["Fee", formatNaira(b.program_fee)],
     ["Service charge", formatNaira(b.service_charge)],
     ["Total paid", formatNaira(b.amount_paid ?? b.total)],
