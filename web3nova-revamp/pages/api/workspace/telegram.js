@@ -4,7 +4,7 @@ import { adminIds, escapeHtml, sendTelegram } from "@/lib/telegram";
 import {
   createCoupons, expiringOn, listCoupons, revokeCoupon, seatsFree, todayStats,
 } from "@/lib/workspaceService";
-import { describeBooking, formatNaira, formatTime, lagosToday } from "@/lib/workspace";
+import { COUPON_DAY_PRICES, describeBooking, formatNaira, formatTime, lagosToday } from "@/lib/workspace";
 
 const siteUrl = () => process.env.NEXT_PUBLIC_SITE_URL || "https://www.web3nova.org";
 
@@ -14,6 +14,7 @@ const HELP = [
   "/coupon – create 1 Friends &amp; Family coupon code",
   "/coupon Tolu – create a code with a note (who it's for)",
   "/coupon 5 Church group – create 5 codes at once",
+  "/coupon1000 Tolu – a code that makes a daily pass ₦1,000 (works with a number and note too)",
   "/coupons – list codes that haven't been used",
   "/revoke FF-XXXXXX – delete an unused code",
   "/today – seats in use, events and money today",
@@ -25,18 +26,25 @@ async function reply(chatId, from, text) {
   const command = cmd.toLowerCase().replace(/@.*$/, "");
   const args = rest.join(" ");
 
-  if (command === "/coupon" || command === "/newcoupon") {
+  const special = command.match(/^\/coupon(\d+)$/);
+  if (special && !COUPON_DAY_PRICES.includes(Number(special[1]))) {
+    return `There's no ₦${escapeHtml(special[1])} code. Use /coupon or ${COUPON_DAY_PRICES.map((p) => `/coupon${p}`).join(", ")}.`;
+  }
+  if (command === "/coupon" || command === "/newcoupon" || special) {
+    const dayPrice = special ? Number(special[1]) : null;
     const m = args.match(/^(\d{1,2})\b\s*(.*)$/);
     const count = m ? Number(m[1]) : 1;
     const note = (m ? m[2] : args).slice(0, 120);
     const who = from.username ? `@${from.username}` : String(from.id);
-    const codes = await createCoupons(count, note, `telegram:${who}`);
+    const codes = await createCoupons(count, note, `telegram:${who}`, dayPrice);
     return [
       `<b>${codes.length} coupon code${codes.length > 1 ? "s" : ""} created</b>${note ? ` for ${escapeHtml(note)}` : ""}`,
       "",
       ...codes.map((c) => `<code>${c}</code>`),
       "",
-      `Each code works for one Friends &amp; Family payment at ${siteUrl()}/workspace`,
+      dayPrice
+        ? `Each code works for one Friends &amp; Family payment at ${siteUrl()}/workspace. A daily pass costs ${formatNaira(dayPrice)} with it (weekly and monthly stay at the normal Friends &amp; Family price).`
+        : `Each code works for one Friends &amp; Family payment at ${siteUrl()}/workspace`,
     ].join("\n");
   }
 
@@ -45,7 +53,7 @@ async function reply(chatId, from, text) {
     if (!coupons.length) return "No unused coupon codes. Send /coupon to create one.";
     return [
       `<b>${coupons.length} unused code${coupons.length > 1 ? "s" : ""}</b>`,
-      ...coupons.map((c) => `<code>${c.code}</code>${c.note ? ` – ${escapeHtml(c.note)}` : ""}`),
+      ...coupons.map((c) => `<code>${c.code}</code>${c.day_price ? ` (${formatNaira(c.day_price)}/day)` : ""}${c.note ? ` – ${escapeHtml(c.note)}` : ""}`),
     ].join("\n");
   }
 

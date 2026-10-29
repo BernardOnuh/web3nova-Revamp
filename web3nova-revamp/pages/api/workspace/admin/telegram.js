@@ -16,6 +16,7 @@ export default async function handler(req, res) {
       await telegram("setMyCommands", {
         commands: [
           { command: "coupon", description: "Create a Friends & Family coupon code" },
+          { command: "coupon1000", description: "Create a code for a ₦1,000 daily pass" },
           { command: "coupons", description: "List unused coupon codes" },
           { command: "revoke", description: "Delete an unused coupon code" },
           { command: "today", description: "Seats, events and money today" },

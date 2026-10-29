@@ -43,6 +43,9 @@ export const SEAT_PLANS = [
   },
 ];
 
+// Friends & Family codes can also be made with a lower daily price (Telegram: /coupon1000).
+export const COUPON_DAY_PRICES = [1000];
+
 // The event space is its own room, booked by date and start time, one event at a time.
 export const EVENT_SPACE = {
   id: "event",

@@ -4,7 +4,8 @@ import { createCoupons, revokeCoupon } from "@/lib/workspaceService";
 export default async function handler(req, res) {
   try {
     if (req.method === "POST") {
-      const codes = await createCoupons(req.body?.count, String(req.body?.note || "").slice(0, 120), "admin page");
+      const note = String(req.body?.note || "").slice(0, 120);
+      const codes = await createCoupons(req.body?.count, note, "admin page", req.body?.dayPrice);
       return res.status(200).json({ codes });
     }
     if (req.method === "DELETE") {

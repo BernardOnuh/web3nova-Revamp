@@ -5,7 +5,7 @@ import { db, rowToBooking, rowToCoupon } from "@/lib/workspaceDb";
 import { getTransactionByPaymentReference } from "@/lib/monnify";
 import { sendWorkspaceConfirmation, sendWorkspaceReminder } from "@/lib/mailer";
 import { notifyAdmins, escapeHtml } from "@/lib/telegram";
-import { SEAT_CAPACITY, addDays, describeBooking, formatNaira, lagosToday } from "@/lib/workspace";
+import { COUPON_DAY_PRICES, SEAT_CAPACITY, addDays, describeBooking, formatNaira, lagosToday } from "@/lib/workspace";
 
 export const REFERENCE_PREFIX = "W3N-WS-";
 // An unpaid checkout holds its seat (and coupon) this long, so two people can't pay for the last seat.
@@ -58,14 +58,16 @@ function newCouponCode() {
   return `FF-${s}`;
 }
 
-export async function createCoupons(count = 1, note = "", createdBy = "") {
+export async function createCoupons(count = 1, note = "", createdBy = "", dayPrice = null) {
   const sql = await db();
   const n = Math.min(20, Math.max(1, Number(count) || 1));
+  const price = COUPON_DAY_PRICES.includes(Number(dayPrice)) ? Number(dayPrice) : null;
   const codes = [];
   while (codes.length < n) {
     const code = newCouponCode();
     const rows = await sql`
-      INSERT INTO ws_coupons (code, note, created_by) VALUES (${code}, ${note || null}, ${createdBy || null})
+      INSERT INTO ws_coupons (code, note, created_by, day_price)
+      VALUES (${code}, ${note || null}, ${createdBy || null}, ${price})
       ON CONFLICT (code) DO NOTHING RETURNING code`;
     if (rows.length) codes.push(code);
   }
@@ -76,10 +78,10 @@ export async function createCoupons(count = 1, note = "", createdBy = "") {
 export async function couponStatus(code) {
   const sql = await db();
   const [c] = await sql`SELECT * FROM ws_coupons WHERE code = ${normalizeCoupon(code)}`;
-  if (!c) return "invalid";
-  if (c.used_at) return "used";
-  if (c.reserved_at && Date.now() - new Date(c.reserved_at).getTime() < HOLD_MINUTES * 60e3) return "held";
-  return "ok";
+  if (!c) return { status: "invalid" };
+  if (c.used_at) return { status: "used" };
+  if (c.reserved_at && Date.now() - new Date(c.reserved_at).getTime() < HOLD_MINUTES * 60e3) return { status: "held" };
+  return { status: "ok", dayPrice: c.day_price };
 }
 
 export async function reserveCoupon(code, ref) {
@@ -88,8 +90,8 @@ export async function reserveCoupon(code, ref) {
     UPDATE ws_coupons SET reserved_ref = ${ref}, reserved_at = now()
     WHERE code = ${normalizeCoupon(code)} AND used_at IS NULL
       AND (reserved_at IS NULL OR reserved_at < now() - make_interval(mins => ${HOLD_MINUTES}))
-    RETURNING code`;
-  return rows.length > 0;
+    RETURNING code, day_price`;
+  return rows[0] || null;
 }
 
 export async function releaseCoupon(code, ref) {

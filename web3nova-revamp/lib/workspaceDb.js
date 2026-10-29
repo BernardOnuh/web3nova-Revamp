@@ -51,6 +51,8 @@ async function migrate(sql) {
       used_ref text,
       used_at timestamptz
     )`;
+  // Set for special codes (e.g. 1000) that make a daily pass cheaper than the usual F&F price.
+  await sql`ALTER TABLE ws_coupons ADD COLUMN IF NOT EXISTS day_price integer`;
 }
 
 export async function db() {

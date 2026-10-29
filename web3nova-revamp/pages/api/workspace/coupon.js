@@ -1,5 +1,6 @@
 // Public: is this Friends & Family coupon code usable?
 import { couponStatus } from "@/lib/workspaceService";
+import { formatNaira } from "@/lib/workspace";
 
 const MESSAGES = {
   ok: "Coupon applied",
@@ -11,8 +12,9 @@ const MESSAGES = {
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
   try {
-    const status = await couponStatus(req.query.code);
-    return res.status(200).json({ valid: status === "ok", message: MESSAGES[status] });
+    const { status, dayPrice } = await couponStatus(req.query.code);
+    const message = dayPrice ? `Coupon applied: daily pass for ${formatNaira(dayPrice)}` : MESSAGES[status];
+    return res.status(200).json({ valid: status === "ok", message, prices: dayPrice ? { day: dayPrice } : null });
   } catch (err) {
     console.error("[workspace/coupon]", err);
     return res.status(503).json({ error: "Could not check the coupon right now" });

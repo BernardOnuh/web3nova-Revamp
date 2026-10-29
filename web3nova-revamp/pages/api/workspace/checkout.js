@@ -34,6 +34,7 @@ export default async function handler(req, res) {
   const ref = newReference();
   let booking;
   let coupon = "";
+  let couponDayPrice = null;
 
   try {
     if (kind === "event") {
@@ -63,9 +64,12 @@ export default async function handler(req, res) {
       }
       if (plan.needsCoupon) {
         coupon = normalizeCoupon(req.body?.coupon);
-        if (!coupon || !(await reserveCoupon(coupon, ref))) {
+        const reserved = coupon && (await reserveCoupon(coupon, ref));
+        if (!reserved) {
+          coupon = "";
           return res.status(400).json({ error: "That coupon code is not valid, or has already been used." });
         }
+        couponDayPrice = reserved.day_price;
       }
       booking = { kind, plan: plan.id, duration: duration.id, start_date: date, end_date: end, coupon };
       if (duration.hourly) {
@@ -81,6 +85,7 @@ export default async function handler(req, res) {
     }
 
     let basePrice = priceFor(booking);
+    if (couponDayPrice && booking.duration === "day") basePrice = couponDayPrice;
     const voucher = kind === "seat" ? normalizeVoucher(req.body?.voucher) : "";
     if (voucher) {
       const discounted = voucherPrice(voucher, booking.plan, booking.duration);

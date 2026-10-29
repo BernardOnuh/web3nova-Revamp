@@ -139,7 +139,9 @@ export default function WorkspaceBooking() {
     ? EVENT_SPACE.options.map((o) => ({ id: o.id, title: o.title, price: o.price }))
     : space
       ? planDurations(space).map((d) => {
-          const discounted = voucher.state === "ok" && voucher.plan === space.id ? voucher.prices[d.id] : undefined;
+          const discounted = voucher.state === "ok" && voucher.plan === space.id
+            ? voucher.prices[d.id]
+            : space.needsCoupon && coupon.state === "ok" ? coupon.prices?.[d.id] : undefined;
           return {
             id: d.id, title: d.title, hourly: !!d.hourly,
             price: discounted || space.prices[d.id], full: discounted ? space.prices[d.id] : null,
@@ -150,6 +152,7 @@ export default function WorkspaceBooking() {
   const canUseVoucher = space?.kind === "seat" && !space.needsCoupon;
   const duration = durationOptions.find((d) => d.id === form.duration);
   const voucherApplied = canUseVoucher && !!duration?.full;
+  const couponDiscount = !!space?.needsCoupon && !!duration?.full;
   const isHourly = !!duration?.hourly;
   const needsTime = isEvent || isHourly;
   const hours = Math.max(1, Number(form.hours) || 1);
@@ -200,7 +203,7 @@ export default function WorkspaceBooking() {
     const t = setTimeout(() => {
       fetch(`/api/workspace/coupon?code=${encodeURIComponent(code)}`, { signal: ctrl.signal })
         .then((r) => r.json())
-        .then((d) => setCoupon({ state: d.valid ? "ok" : "bad", message: d.message || d.error }))
+        .then((d) => setCoupon({ state: d.valid ? "ok" : "bad", message: d.message || d.error, prices: d.prices }))
         .catch((err) => err.name !== "AbortError" && setCoupon({ state: "bad", message: "Could not check the code" }));
     }, 400);
     return () => {
@@ -584,6 +587,7 @@ export default function WorkspaceBooking() {
               <div className="flex justify-between gap-4"><dt className="text-gray-400">Space</dt><dd className="text-right font-medium">{space?.title || "—"}</dd></div>
               <div className="flex justify-between gap-4"><dt className="text-gray-400">Plan</dt><dd className="text-right font-medium">{duration ? `${duration.title}${isHourly ? ` (${hours} hr${hours === 1 ? "" : "s"})` : ""}` : "—"}</dd></div>
               {voucherApplied && <div className="flex justify-between gap-4"><dt className="text-gray-400">Voucher</dt><dd className="text-right font-medium text-green-300">{form.voucher.trim()} (−{formatNaira(duration.full - duration.price)})</dd></div>}
+              {couponDiscount && <div className="flex justify-between gap-4"><dt className="text-gray-400">Coupon</dt><dd className="text-right font-medium text-green-300">{form.coupon.trim()} (−{formatNaira(duration.full - duration.price)})</dd></div>}
               <div className="flex justify-between gap-4"><dt className="text-gray-400">When</dt><dd className="text-right font-medium">{whenText}</dd></div>
             </dl>
             {breakdown && (

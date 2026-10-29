@@ -5,7 +5,7 @@ import {
   RefreshCw, Users, CalendarClock, Wallet, Ticket, Search, Copy, Trash2, Plus, Send, Loader2,
   CheckCircle2, AlertTriangle, PartyPopper, BellRing, Bot,
 } from "lucide-react";
-import { describeBooking, formatDate, formatNaira, lagosToday } from "@/lib/workspace";
+import { COUPON_DAY_PRICES, describeBooking, findPlan, formatDate, formatNaira, lagosToday } from "@/lib/workspace";
 
 const card = "bg-zinc-900/70 border border-zinc-800 rounded-2xl";
 
@@ -55,7 +55,7 @@ export default function WorkspaceAdmin() {
   const [query, setQuery] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState("");
-  const [newCoupon, setNewCoupon] = useState({ count: 1, note: "" });
+  const [newCoupon, setNewCoupon] = useState({ count: 1, note: "", dayPrice: "" });
   const [created, setCreated] = useState([]);
 
   const load = useCallback(async () => {
@@ -102,7 +102,7 @@ export default function WorkspaceAdmin() {
     e.preventDefault();
     call("coupon", "/api/workspace/admin/coupons", { method: "POST", body: JSON.stringify(newCoupon) }, async (d) => {
       setCreated(d.codes);
-      setNewCoupon({ count: 1, note: "" });
+      setNewCoupon((c) => ({ ...c, count: 1, note: "" }));
       await load();
     });
   };
@@ -276,6 +276,14 @@ export default function WorkspaceAdmin() {
                       className="mt-1 w-full rounded-lg bg-black border border-zinc-800 px-3 py-2 outline-none focus:border-zinc-600" />
                   </label>
                   <label className="block text-sm">
+                    <span className="text-zinc-400 text-xs">Daily price</span>
+                    <select value={newCoupon.dayPrice} onChange={(e) => setNewCoupon((c) => ({ ...c, dayPrice: e.target.value }))}
+                      className="mt-1 w-full rounded-lg bg-black border border-zinc-800 px-3 py-2 outline-none focus:border-zinc-600">
+                      <option value="">Normal ({formatNaira(findPlan("family").prices.day)}/day)</option>
+                      {COUPON_DAY_PRICES.map((p) => <option key={p} value={p}>{formatNaira(p)}/day</option>)}
+                    </select>
+                  </label>
+                  <label className="block text-sm">
                     <span className="text-zinc-400 text-xs">Who it&apos;s for (optional)</span>
                     <input value={newCoupon.note} maxLength={120} placeholder="e.g. Tolu's sister"
                       onChange={(e) => setNewCoupon((c) => ({ ...c, note: e.target.value }))}
@@ -304,6 +312,7 @@ export default function WorkspaceAdmin() {
                         <button onClick={() => copy(c.code)} className="font-mono text-sm hover:text-zinc-300 inline-flex items-center gap-2">
                           {c.code} <Copy className="w-3.5 h-3.5 text-zinc-500" />
                         </button>
+                        {c.day_price && <span className="rounded-full px-2.5 py-1 text-xs bg-pink-500/15 text-pink-300">{formatNaira(c.day_price)}/day</span>}
                         <span className="text-xs text-zinc-400 flex-1 min-w-0 truncate">
                           {c.note || "No note"} · made {new Date(c.created_at).toLocaleDateString("en-GB")} {c.created_by ? `by ${c.created_by}` : ""}
                         </span>
@@ -346,7 +355,7 @@ export default function WorkspaceAdmin() {
                     className="inline-flex items-center gap-2 rounded-lg bg-white text-black px-3 py-2 text-sm font-medium hover:bg-zinc-200 disabled:opacity-40">
                     {busy === "telegram" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Connect bot
                   </button>
-                  <p className="text-xs text-zinc-500">Bot commands: /coupon, /coupon 5 note, /coupons, /revoke CODE, /today, /expiring. Admins also get a message for every payment and a daily summary.</p>
+                  <p className="text-xs text-zinc-500">Bot commands: /coupon, /coupon 5 note, /coupon1000 note, /coupons, /revoke CODE, /today, /expiring. Admins also get a message for every payment and a daily summary.</p>
                 </div>
                 <div className={`${card} p-5 space-y-3`}>
                   <p className="font-medium flex items-center gap-2"><BellRing className="w-4 h-4" /> Renewal reminders</p>
