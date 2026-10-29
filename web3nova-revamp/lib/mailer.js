@@ -2,6 +2,7 @@
 import nodemailer from "nodemailer";
 import { BOOTCAMP_NAME, BOOTCAMP_DURATION, formatNaira } from "@/lib/bootcamp";
 import { SPACE_NAME, describeBooking } from "@/lib/workspace";
+import { paymentRecipients } from "@/lib/notifyEmails";
 
 function transporter() {
   const port = Number(process.env.SMTP_PORT || 465);
@@ -15,6 +16,14 @@ function transporter() {
 
 const escape = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+// One email per admin, so nobody sees the others' addresses. Best effort: the customer's
+// email has already gone out, so a bad admin address must not count as a failed confirmation.
+async function sendAdminCopies(t, envName, mail) {
+  const to = await paymentRecipients(envName);
+  const results = await Promise.allSettled(to.map((addr) => t.sendMail({ ...mail, to: addr })));
+  results.forEach((r, i) => r.status === "rejected" && console.error(`[mailer] admin copy to ${to[i]} failed`, r.reason));
+}
 
 export async function sendBootcampConfirmation({
   name,
@@ -77,14 +86,11 @@ export async function sendBootcampConfirmation({
     html,
   });
 
-  if (process.env.BOOTCAMP_ADMIN_EMAIL) {
-    await t.sendMail({
-      from,
-      to: process.env.BOOTCAMP_ADMIN_EMAIL,
-      subject: `New bootcamp payment: ${name} (${course}, ${location})`,
-      text: [`Name: ${name}`, `Email: ${email}`, ...rows.map(([k, v]) => `${k}: ${v}`)].join("\n"),
-    });
-  }
+  await sendAdminCopies(t, "BOOTCAMP_ADMIN_EMAIL", {
+    from,
+    subject: `New bootcamp payment: ${name} (${course}, ${location})`,
+    text: [`Name: ${name}`, `Email: ${email}`, ...rows.map(([k, v]) => `${k}: ${v}`)].join("\n"),
+  });
 }
 
 // ---- Workspace ----
@@ -149,14 +155,11 @@ export async function sendWorkspaceConfirmation(b) {
   const t = transporter();
   await t.sendMail({ from, to: b.email, subject: `Booking confirmed – ${SPACE_NAME}`, text, html });
 
-  if (process.env.WORKSPACE_ADMIN_EMAIL) {
-    await t.sendMail({
-      from,
-      to: process.env.WORKSPACE_ADMIN_EMAIL,
-      subject: `New workspace booking: ${b.name} (${describeBooking(b).planTitle})`,
-      text: [`Name: ${b.name}`, `Email: ${b.email}`, `Phone: ${b.phone}`, ...rows.map(([k, v]) => `${k}: ${v}`)].join("\n"),
-    });
-  }
+  await sendAdminCopies(t, "WORKSPACE_ADMIN_EMAIL", {
+    from,
+    subject: `New workspace booking: ${b.name} (${describeBooking(b).planTitle})`,
+    text: [`Name: ${b.name}`, `Email: ${b.email}`, `Phone: ${b.phone}`, ...rows.map(([k, v]) => `${k}: ${v}`)].join("\n"),
+  });
 }
 
 // `when` is "today" (expires at 8pm today) or "tomorrow".

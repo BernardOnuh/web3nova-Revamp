@@ -1,15 +1,23 @@
 // Admin only (protected by proxy.js): everything the admin page shows.
 import { listBookings, listCoupons, todayStats } from "@/lib/workspaceService";
 import { adminIds, telegramConfigured } from "@/lib/telegram";
+import { listNotifyEmails } from "@/lib/notifyEmails";
+
+const envEmails = (v) => String(v || "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
 
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
   try {
-    const [stats, bookings, coupons] = await Promise.all([todayStats(), listBookings(), listCoupons()]);
+    const [stats, bookings, coupons, notifyEmails] = await Promise.all([
+      todayStats(), listBookings(), listCoupons(), listNotifyEmails(),
+    ]);
     return res.status(200).json({
       stats,
       bookings,
       coupons,
+      notifyEmails,
+      // Set in Vercel; shown read-only on the admin page.
+      envEmails: [...new Set([...envEmails(process.env.WORKSPACE_ADMIN_EMAIL), ...envEmails(process.env.BOOTCAMP_ADMIN_EMAIL)])],
       setup: {
         database: true,
         monnify: !!(process.env.MONNIFY_API_KEY && process.env.MONNIFY_SECRET_KEY && process.env.MONNIFY_CONTRACT_CODE),

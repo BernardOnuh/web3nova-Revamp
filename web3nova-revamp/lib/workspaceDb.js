@@ -53,6 +53,11 @@ async function migrate(sql) {
     )`;
   // Set for special codes (e.g. 1000) that make a daily pass cheaper than the usual F&F price.
   await sql`ALTER TABLE ws_coupons ADD COLUMN IF NOT EXISTS day_price integer`;
+  await sql`
+    CREATE TABLE IF NOT EXISTS ws_notify_emails (
+      email text PRIMARY KEY,
+      added_at timestamptz NOT NULL DEFAULT now()
+    )`;
 }
 
 export async function db() {

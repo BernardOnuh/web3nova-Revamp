@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   RefreshCw, Users, CalendarClock, Wallet, Ticket, Search, Copy, Trash2, Plus, Send, Loader2,
-  CheckCircle2, AlertTriangle, PartyPopper, BellRing, Bot,
+  CheckCircle2, AlertTriangle, PartyPopper, BellRing, Bot, Mail,
 } from "lucide-react";
 import { COUPON_DAY_PRICES, describeBooking, findPlan, formatDate, formatNaira, lagosToday } from "@/lib/workspace";
 
@@ -57,6 +57,7 @@ export default function WorkspaceAdmin() {
   const [busy, setBusy] = useState("");
   const [newCoupon, setNewCoupon] = useState({ count: 1, note: "", dayPrice: "" });
   const [created, setCreated] = useState([]);
+  const [newEmail, setNewEmail] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -109,6 +110,19 @@ export default function WorkspaceAdmin() {
   const deleteCoupon = (code) =>
     call(`del-${code}`, `/api/workspace/admin/coupons?code=${encodeURIComponent(code)}`, { method: "DELETE" }, async () => {
       flash(`Deleted ${code}`);
+      await load();
+    });
+  const addEmail = (e) => {
+    e.preventDefault();
+    call("email", "/api/workspace/admin/emails", { method: "POST", body: JSON.stringify({ email: newEmail }) }, async () => {
+      flash(`${newEmail.trim()} will get payment emails`);
+      setNewEmail("");
+      await load();
+    });
+  };
+  const removeEmail = (email) =>
+    call(`email-${email}`, `/api/workspace/admin/emails?email=${encodeURIComponent(email)}`, { method: "DELETE" }, async () => {
+      flash(`Removed ${email}`);
       await load();
     });
   const connectTelegram = () =>
@@ -210,7 +224,7 @@ export default function WorkspaceAdmin() {
             )}
 
             <div className="flex gap-1 mb-4 border-b border-zinc-800">
-              {[["bookings", "Bookings"], ["coupons", "Coupons"], ["telegram", "Telegram & reminders"]].map(([id, label]) => (
+              {[["bookings", "Bookings"], ["coupons", "Coupons"], ["telegram", "Notifications"]].map(([id, label]) => (
                 <button key={id} onClick={() => setTab(id)}
                   className={`px-4 py-2 text-sm -mb-px border-b-2 ${tab === id ? "border-white text-white" : "border-transparent text-zinc-400 hover:text-white"}`}>
                   {label}
@@ -339,6 +353,37 @@ export default function WorkspaceAdmin() {
 
             {tab === "telegram" && (
               <section className="grid md:grid-cols-2 gap-4">
+                <div className={`${card} p-5 space-y-3 md:col-span-2`}>
+                  <p className="font-medium flex items-center gap-2"><Mail className="w-4 h-4" /> Payment emails</p>
+                  <p className="text-sm text-zinc-300">Everyone on this list gets an email with the customer&apos;s details whenever someone pays for the workspace or the bootcamp.</p>
+                  {!setup.email && <p className="text-sm text-yellow-300">Email isn&apos;t set up yet: set SMTP_USER and SMTP_PASS in Vercel, or no emails go out.</p>}
+                  <form onSubmit={addEmail} className="flex flex-col sm:flex-row gap-2">
+                    <input type="email" required value={newEmail} placeholder="name@example.com" onChange={(e) => setNewEmail(e.target.value)}
+                      className="flex-1 min-w-0 rounded-lg bg-black border border-zinc-800 px-3 py-2 text-sm outline-none focus:border-zinc-600" />
+                    <button disabled={busy === "email"}
+                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-white text-black px-3 py-2 text-sm font-medium hover:bg-zinc-200 disabled:opacity-50">
+                      {busy === "email" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Add
+                    </button>
+                  </form>
+                  <div className="divide-y divide-zinc-800">
+                    {data.notifyEmails.map((r) => (
+                      <div key={r.email} className="flex items-center gap-3 py-2">
+                        <span className="text-sm flex-1 min-w-0 truncate">{r.email}</span>
+                        <button onClick={() => removeEmail(r.email)} disabled={busy === `email-${r.email}`} aria-label={`Remove ${r.email}`}
+                          className="p-1.5 rounded-lg text-zinc-400 hover:text-red-300 hover:bg-red-500/10">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                    {data.envEmails.filter((e) => !data.notifyEmails.some((r) => r.email === e)).map((e) => (
+                      <div key={e} className="flex items-center gap-3 py-2">
+                        <span className="text-sm flex-1 min-w-0 truncate">{e}</span>
+                        <span className="text-xs text-zinc-500">set in Vercel</span>
+                      </div>
+                    ))}
+                    {!data.notifyEmails.length && !data.envEmails.length && <p className="text-sm text-zinc-500 py-2">No one yet. Add an address above.</p>}
+                  </div>
+                </div>
                 <div className={`${card} p-5 space-y-3`}>
                   <p className="font-medium flex items-center gap-2"><Bot className="w-4 h-4" /> Telegram bot</p>
                   <ol className="text-sm text-zinc-300 list-decimal pl-5 space-y-1.5">
