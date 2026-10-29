@@ -51,7 +51,7 @@ export default function WorkspaceAdmin() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("bookings");
-  const [filter, setFilter] = useState("active");
+  const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState("");
