@@ -23,6 +23,8 @@ function bookingState(b, today) {
   if (b.status !== "paid") return b.status === "failed" ? "failed" : "unpaid";
   if (b.end_date < today) return "expired";
   if (b.start_date > today) return "upcoming";
+  // "Pick days" passes are only in on the days they picked.
+  if (b.days?.length && !b.days.includes(today)) return "upcoming";
   return b.end_date === today ? "ending" : "active";
 }
 

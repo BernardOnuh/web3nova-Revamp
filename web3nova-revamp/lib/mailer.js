@@ -3,6 +3,7 @@ import nodemailer from "nodemailer";
 import { BOOTCAMP_NAME, BOOTCAMP_DURATION, formatNaira } from "@/lib/bootcamp";
 import { SPACE_NAME, describeBooking } from "@/lib/workspace";
 import { paymentRecipients } from "@/lib/notifyEmails";
+import { SITE } from "@/lib/seo";
 
 function transporter() {
   const port = Number(process.env.SMTP_PORT || 465);
@@ -95,7 +96,9 @@ export async function sendBootcampConfirmation({
 
 // ---- Workspace ----
 
-const siteUrl = () => process.env.NEXT_PUBLIC_SITE_URL || "https://www.web3nova.org";
+// Always the public web3nova.org domain, whatever NEXT_PUBLIC_SITE_URL is set to,
+// so links in emails never point at another domain.
+const siteUrl = () => SITE.url;
 
 export function renewUrl(b) {
   const q = new URLSearchParams({ plan: b.plan, duration: b.duration, name: b.name, email: b.email, phone: b.phone });

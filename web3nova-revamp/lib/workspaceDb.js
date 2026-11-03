@@ -38,6 +38,8 @@ async function migrate(sql) {
       reminded_final_at timestamptz
     )`;
   await sql`ALTER TABLE ws_bookings ADD COLUMN IF NOT EXISTS voucher text`;
+  // Set only for "Pick days" passes: the exact dates booked (start/end_date are the first and last).
+  await sql`ALTER TABLE ws_bookings ADD COLUMN IF NOT EXISTS days date[]`;
   await sql`CREATE INDEX IF NOT EXISTS ws_bookings_dates ON ws_bookings (kind, start_date, end_date)`;
   await sql`CREATE INDEX IF NOT EXISTS ws_bookings_email ON ws_bookings (email)`;
   await sql`
@@ -86,6 +88,7 @@ export function rowToBooking(r) {
     ...r,
     start_date: toDay(r.start_date),
     end_date: toDay(r.end_date),
+    days: Array.isArray(r.days) ? r.days.map(toDay).sort() : null,
     event_start: toIso(r.event_start),
     event_end: toIso(r.event_end),
     created_at: toIso(r.created_at),

@@ -1,5 +1,5 @@
 import {
-  EVENT_SPACE, MAX_DAYS_AHEAD, SPACE_NAME, addDays, describeBooking, earliestSeatStart, eventStartHours,
+  EVENT_SPACE, MAX_DAYS_AHEAD, MAX_PICK_DAYS, SPACE_NAME, addDays, cleanDays, unitPrice, describeBooking, earliestSeatStart, eventStartHours,
   eventWindow, findDuration, findEventOption, findPlan, hourlyStartHours, isIsoDate, lagosToday, maxHoursFrom,
   priceBreakdown, priceFor, seatEndDate,
 } from "@/lib/workspace";
@@ -7,7 +7,7 @@ import { initTransaction } from "@/lib/monnify";
 import { normalizeVoucher, voucherPrice } from "@/lib/vouchers";
 import {
   deleteBooking, eventClashes, insertPendingBooking, newReference, normalizeCoupon, releaseCoupon,
-  reserveCoupon, seatsFree,
+  reserveCoupon, seatsFree, seatsFreeOnDays,
 } from "@/lib/workspaceService";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -22,7 +22,9 @@ export default async function handler(req, res) {
   const name = clean(req.body?.name);
   const email = clean(req.body?.email).toLowerCase();
   const phone = clean(req.body?.phone, 30);
-  const date = clean(req.body?.date, 10);
+  // "Pick days" passes send the exact dates; the first one is the start date.
+  const pickedDays = kind === "seat" && req.body?.duration === "days" ? cleanDays(req.body?.days) : null;
+  const date = pickedDays ? pickedDays[0] || "" : clean(req.body?.date, 10);
 
   if (!name || !EMAIL_RE.test(email) || !phone) {
     return res.status(400).json({ error: "Please fill in your name, email and phone number." });
@@ -54,13 +56,24 @@ export default async function handler(req, res) {
     } else {
       const plan = findPlan(req.body?.plan);
       const duration = findDuration(req.body?.duration);
-      if (!plan || !duration || !plan.prices[duration.id]) return res.status(400).json({ error: "Please pick a plan." });
+      if (!plan || !duration || !unitPrice(plan, duration.id)) return res.status(400).json({ error: "Please pick a plan." });
       if (date < earliestSeatStart()) {
         return res.status(400).json({ error: "That date has passed. Passes for today end at 8pm." });
       }
-      const end = seatEndDate(date, duration.id);
-      if ((await seatsFree(date, end)) < 1) {
-        return res.status(409).json({ error: "All 60 seats are taken for those dates. Try another start date." });
+      let end;
+      if (pickedDays) {
+        end = pickedDays[pickedDays.length - 1];
+        if (pickedDays.length > MAX_PICK_DAYS || end > addDays(lagosToday(), MAX_DAYS_AHEAD)) {
+          return res.status(400).json({ error: `Pick up to ${MAX_PICK_DAYS} days within the next ${MAX_DAYS_AHEAD} days.` });
+        }
+        if ((await seatsFreeOnDays(pickedDays)) < 1) {
+          return res.status(409).json({ error: "All 60 seats are taken on one of those days. Pick different days." });
+        }
+      } else {
+        end = seatEndDate(date, duration.id);
+        if ((await seatsFree(date, end)) < 1) {
+          return res.status(409).json({ error: "All 60 seats are taken for those dates. Try another start date." });
+        }
       }
       if (plan.needsCoupon) {
         coupon = normalizeCoupon(req.body?.coupon);
@@ -71,7 +84,7 @@ export default async function handler(req, res) {
         }
         couponDayPrice = reserved.day_price;
       }
-      booking = { kind, plan: plan.id, duration: duration.id, start_date: date, end_date: end, coupon };
+      booking = { kind, plan: plan.id, duration: duration.id, start_date: date, end_date: end, coupon, days: pickedDays };
       if (duration.hourly) {
         const hour = Number(req.body?.startHour);
         const hours = Number(req.body?.hours);
@@ -85,10 +98,13 @@ export default async function handler(req, res) {
     }
 
     let basePrice = priceFor(booking);
-    if (couponDayPrice && booking.duration === "day") basePrice = couponDayPrice;
+    const dayCount = booking.duration === "days" ? booking.days.length : 1;
+    if (couponDayPrice && ["day", "days"].includes(booking.duration)) basePrice = couponDayPrice * dayCount;
     const voucher = kind === "seat" ? normalizeVoucher(req.body?.voucher) : "";
     if (voucher) {
-      const discounted = voucherPrice(voucher, booking.plan, booking.duration);
+      // Vouchers price "Pick days" passes at their daily rate, per day.
+      const perUnit = voucherPrice(voucher, booking.plan, booking.duration === "days" ? "day" : booking.duration);
+      const discounted = perUnit && perUnit * dayCount;
       if (!discounted) {
         if (coupon) await releaseCoupon(coupon, ref);
         return res.status(400).json({ error: "That voucher code doesn't apply to this plan." });
@@ -120,7 +136,7 @@ export default async function handler(req, res) {
       paymentDescription: `${SPACE_NAME} – ${d.planTitle} (${d.durationTitle})`,
       // Monnify appends ?paymentReference=... to this URL
       redirectUrl: `${siteUrl}/workspace/success/${ref}`,
-      metaData: { kind, plan: booking.plan, duration: booking.duration, date, phone },
+      metaData: { kind, plan: booking.plan, duration: booking.duration, date, phone, ...(pickedDays ? { days: pickedDays.join(",") } : {}) },
     });
     return res.status(200).json({ checkoutUrl: tx.checkoutUrl, paymentReference: ref });
   } catch (err) {

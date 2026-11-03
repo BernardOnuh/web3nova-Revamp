@@ -1,13 +1,30 @@
 // Public: how many seats are free for a pass, or which event start times are taken on a day.
 import {
-  MAX_DAYS_AHEAD, SEAT_CAPACITY, addDays, earliestSeatStart, eventStartHours, eventWindow,
+  MAX_DAYS_AHEAD, MAX_PICK_DAYS, SEAT_CAPACITY, addDays, cleanDays, earliestSeatStart, eventStartHours, eventWindow,
   findDuration, findEventOption, hourlyStartHours, isIsoDate, lagosToday, seatEndDate,
 } from "@/lib/workspace";
-import { eventsOn, seatsFree } from "@/lib/workspaceService";
+import { eventsOn, seatsFree, seatsFreeByDay } from "@/lib/workspaceService";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
   const { kind, duration, date } = req.query;
+
+  // "Pick days": free seats on each listed day (?duration=days&days=2026-12-15,2026-12-17).
+  if (kind !== "event" && duration === "days") {
+    const days = cleanDays(req.query.days);
+    const last = addDays(lagosToday(), MAX_DAYS_AHEAD);
+    if (!days.length || days.length > MAX_PICK_DAYS || days[0] < earliestSeatStart() || days[days.length - 1] > last) {
+      return res.status(400).json({ error: "Pick valid days" });
+    }
+    try {
+      const freeByDay = await seatsFreeByDay(days);
+      return res.status(200).json({ free: Math.min(...Object.values(freeByDay)), freeByDay, capacity: SEAT_CAPACITY });
+    } catch (err) {
+      console.error("[workspace/availability]", err);
+      return res.status(503).json({ error: "Could not check availability right now" });
+    }
+  }
+
   if (!isIsoDate(date) || date > addDays(lagosToday(), MAX_DAYS_AHEAD)) {
     return res.status(400).json({ error: "Pick a valid date" });
   }

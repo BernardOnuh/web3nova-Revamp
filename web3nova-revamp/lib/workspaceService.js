@@ -13,18 +13,32 @@ const HOLD_MINUTES = 30;
 
 // ---- Availability ----
 
-export async function seatsFree(startDate, endDate) {
+// Free seats on the busiest of `days` (YYYY-MM-DD strings). A seat booking takes up every
+// day from start to end, except "Pick days" passes, which only take up the days they list.
+export async function seatsFreeOnDays(days) {
+  const byDay = await seatsFreeByDay(days);
+  return Math.min(SEAT_CAPACITY, ...Object.values(byDay));
+}
+
+// { "2026-12-15": 42, ... } free seats for each of `days`.
+export async function seatsFreeByDay(days) {
+  if (!days.length) return {};
   const sql = await db();
   const rows = await sql`
-    SELECT count(b.ref)::int AS used
-    FROM generate_series(${startDate}::date, ${endDate}::date, interval '1 day') AS d
+    SELECT to_char(d, 'YYYY-MM-DD') AS day, count(b.ref)::int AS used
+    FROM unnest(${days}::date[]) AS d
     LEFT JOIN ws_bookings b
       ON b.kind = 'seat'
-     AND d::date BETWEEN b.start_date AND b.end_date
+     AND (CASE WHEN b.days IS NULL THEN d BETWEEN b.start_date AND b.end_date ELSE d = ANY(b.days) END)
      AND (b.status = 'paid' OR (b.status = 'pending' AND b.created_at > now() - make_interval(mins => ${HOLD_MINUTES})))
     GROUP BY d`;
-  const busiest = Math.max(0, ...rows.map((r) => r.used));
-  return Math.max(0, SEAT_CAPACITY - busiest);
+  return Object.fromEntries(rows.map((r) => [r.day, Math.max(0, SEAT_CAPACITY - r.used)]));
+}
+
+export async function seatsFree(startDate, endDate) {
+  const days = [];
+  for (let d = startDate; d <= endDate; d = addDays(d, 1)) days.push(d);
+  return seatsFreeOnDays(days);
 }
 
 export async function eventsOn(date) {
@@ -122,11 +136,12 @@ export async function insertPendingBooking(b) {
   await sql`
     INSERT INTO ws_bookings
       (ref, kind, plan, duration, name, email, phone, start_date, end_date, event_start, event_end,
-       coupon, voucher, program_fee, service_charge, total)
+       coupon, voucher, days, program_fee, service_charge, total)
     VALUES
       (${b.ref}, ${b.kind}, ${b.plan}, ${b.duration}, ${b.name}, ${b.email}, ${b.phone},
        ${b.start_date}::date, ${b.end_date}::date, ${b.event_start || null}, ${b.event_end || null},
-       ${b.coupon || null}, ${b.voucher || null}, ${b.program_fee}, ${b.service_charge}, ${b.total})`;
+       ${b.coupon || null}, ${b.voucher || null}, ${b.days?.length ? b.days : null}::date[],
+       ${b.program_fee}, ${b.service_charge}, ${b.total})`;
 }
 
 export async function deleteBooking(ref) {
@@ -241,7 +256,8 @@ export async function todayStats() {
   const today = lagosToday();
   const [seats] = await sql`
     SELECT count(*)::int AS used FROM ws_bookings
-    WHERE kind = 'seat' AND status = 'paid' AND ${today}::date BETWEEN start_date AND end_date`;
+    WHERE kind = 'seat' AND status = 'paid'
+      AND (CASE WHEN days IS NULL THEN ${today}::date BETWEEN start_date AND end_date ELSE ${today}::date = ANY(days) END)`;
   const [money] = await sql`
     SELECT
       coalesce(sum(program_fee) FILTER (WHERE (paid_at AT TIME ZONE 'Africa/Lagos')::date = ${today}::date), 0)::int AS today,

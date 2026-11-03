@@ -6,7 +6,9 @@ import {
 } from "@/lib/workspaceService";
 import { COUPON_DAY_PRICES, describeBooking, formatNaira, formatTime, lagosToday } from "@/lib/workspace";
 
-const siteUrl = () => process.env.NEXT_PUBLIC_SITE_URL || "https://www.web3nova.org";
+import { SITE } from "@/lib/seo";
+
+const siteUrl = () => SITE.url;
 
 const HELP = [
   "<b>Web3Nova Workspace bot</b>",

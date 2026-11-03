@@ -10,10 +10,13 @@ export const OPEN_LABEL = "7:30am";
 export const CLOSE_LABEL = "8:00pm";
 export const CLOSE_MINUTES = 20 * 60; // seat passes end at 8pm, Lagos time
 export const MAX_DAYS_AHEAD = 90;
+// "Pick days" passes: choose the exact dates you'll come in, paid at the daily rate.
+export const MAX_PICK_DAYS = 30;
 
 export const DURATIONS = [
   { id: "hour", title: "Hourly", days: 1, unit: "hour", hourly: true },
   { id: "day", title: "Daily", days: 1, unit: "day" },
+  { id: "days", title: "Pick days", unit: "day", pickDays: true },
   { id: "week", title: "Weekly", days: 7, unit: "week" },
   { id: "month", title: "Monthly", days: 30, unit: "month" },
 ];
@@ -63,7 +66,10 @@ export const EVENT_SPACE = {
 export const HOURLY = { firstStartHour: 8, lastEndHour: 20 };
 
 export const findPlan = (id) => SEAT_PLANS.find((p) => p.id === id);
-export const planDurations = (plan) => DURATIONS.filter((d) => plan?.prices[d.id]);
+// Price per unit for a plan: "Pick days" passes charge the plan's daily rate per day.
+export const unitPrice = (plan, durationId) =>
+  plan?.prices[durationId === "days" ? "day" : durationId] || 0;
+export const planDurations = (plan) => DURATIONS.filter((d) => unitPrice(plan, d.id));
 export const findDuration = (id) => DURATIONS.find((d) => d.id === id);
 export const findEventOption = (id) => EVENT_SPACE.options.find((o) => o.id === id);
 
@@ -100,6 +106,12 @@ export function addDays(date, n) {
   const d = new Date(`${date}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
+}
+
+// Sorted, de-duplicated list of valid YYYY-MM-DD strings (from an array or "a,b,c").
+export function cleanDays(value) {
+  const list = Array.isArray(value) ? value : String(value || "").split(",");
+  return [...new Set(list.map((d) => String(d).trim()).filter((d) => isIsoDate(d)))].sort();
 }
 
 export const isIsoDate = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v)) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`));
@@ -139,10 +151,28 @@ export function formatTime(iso) {
   }).replace(" ", "");
 }
 
-export function priceFor({ kind, plan, duration, hours }) {
+export function priceFor({ kind, plan, duration, hours, days }) {
   if (kind === "event") return findEventOption(duration)?.price || 0;
-  const price = findPlan(plan)?.prices[duration] || 0;
-  return duration === "hour" ? price * (Number(hours) || 0) : price;
+  const price = unitPrice(findPlan(plan), duration);
+  if (duration === "hour") return price * (Number(hours) || 0);
+  if (duration === "days") return price * (days?.length || 0);
+  return price;
+}
+
+// "Tue 15, Thu 17 Dec 2026" style list for picked days (keeps month/year only where they change).
+export function formatDayList(days) {
+  return days
+    .map((day, i) => {
+      const next = days[i + 1];
+      const sameMonth = next && next.slice(0, 7) === day.slice(0, 7);
+      const d = new Date(`${day}T12:00:00Z`);
+      const part = (o) => d.toLocaleDateString("en-GB", { ...o, timeZone: "UTC" });
+      const yearChanges = !next || next.slice(0, 4) !== day.slice(0, 4);
+      return [part({ weekday: "short" }), d.getUTCDate(), sameMonth ? "" : part({ month: "short" }), yearChanges ? d.getUTCFullYear() : ""]
+        .filter(Boolean)
+        .join(" ");
+    })
+    .join(", ");
 }
 
 const hoursBetween = (start, end) => Math.round((new Date(end) - new Date(start)) / 3600e3);
@@ -161,6 +191,14 @@ export function describeBooking(b) {
   }
   const plan = findPlan(b.plan);
   const dur = findDuration(b.duration);
+  if (b.duration === "days" && b.days?.length) {
+    const n = b.days.length;
+    return {
+      planTitle: plan?.title || b.plan,
+      durationTitle: `Pick days (${n} day${n === 1 ? "" : "s"})`,
+      when: `${formatDayList(b.days)}, ${OPEN_LABEL} – ${CLOSE_LABEL}`,
+    };
+  }
   if (b.duration === "hour" && b.event_start) {
     const n = hoursBetween(b.event_start, b.event_end);
     return {

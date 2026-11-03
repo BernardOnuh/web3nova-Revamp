@@ -4,12 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Minus, Plus, Armchair, Monitor, HeartHandshake, PartyPopper, User, Mail, Phone, Ticket, CalendarDays, Clock,
-  ArrowRight, Loader2, Check, Lock, ShieldCheck, MailCheck, Wifi, Users, BellRing,
+  ArrowRight, Loader2, Check, Lock, ShieldCheck, MailCheck, Wifi, Users, BellRing, ChevronLeft, ChevronRight, X,
 } from "lucide-react";
 import {
-  DURATIONS, EVENT_SPACE, MAX_DAYS_AHEAD, SEAT_CAPACITY, SEAT_PLANS, CLOSE_LABEL, OPEN_LABEL,
-  addDays, earliestSeatStart, formatDate, formatHour, formatNaira, lagosToday, maxHoursFrom, planDurations,
-  priceBreakdown, seatEndDate,
+  DURATIONS, EVENT_SPACE, MAX_DAYS_AHEAD, MAX_PICK_DAYS, SEAT_CAPACITY, SEAT_PLANS, CLOSE_LABEL, OPEN_LABEL,
+  addDays, earliestSeatStart, formatDate, formatDayList, formatHour, formatNaira, lagosToday, maxHoursFrom,
+  planDurations, priceBreakdown, seatEndDate, unitPrice,
 } from "@/lib/workspace";
 import { BootcampBackground, fontVars } from "@/components/Bootcamp/theme";
 
@@ -85,7 +85,7 @@ function Chip({ active, onClick, color = "#4A90E2", children, disabled }) {
 
 export default function WorkspaceBooking() {
   const [form, setForm] = useState({
-    space: "", duration: "", date: "", startHour: "", hours: 1, name: "", email: "", phone: "", coupon: "", voucher: "",
+    space: "", duration: "", date: "", days: [], startHour: "", hours: 1, name: "", email: "", phone: "", coupon: "", voucher: "",
   });
   const [touched, setTouched] = useState({});
   const [loading, setLoading] = useState(false);
@@ -117,12 +117,13 @@ export default function WorkspaceBooking() {
     const space = SPACES.find((s) => s.id === q.get("plan"));
     if (space) {
       fromUrl.space = space.id;
-      const ok = space.kind === "event" ? EVENT_SPACE.options.some((o) => o.id === q.get("duration")) : !!space.prices[q.get("duration")];
+      const ok = space.kind === "event" ? EVENT_SPACE.options.some((o) => o.id === q.get("duration")) : !!unitPrice(space, q.get("duration"));
       if (ok) fromUrl.duration = q.get("duration");
     }
     const merged = { ...(saved || {}), ...fromUrl };
     // Old saved dates are useless once they've passed.
     if (merged.date && merged.date < lagosToday()) merged.date = "";
+    merged.days = Array.isArray(merged.days) ? merged.days.filter((d) => d >= earliestSeatStart()) : [];
     delete merged.startHour;
     if (Object.keys(merged).length) setForm((f) => ({ ...f, ...merged }));
   }, []);
@@ -139,13 +140,15 @@ export default function WorkspaceBooking() {
     ? EVENT_SPACE.options.map((o) => ({ id: o.id, title: o.title, price: o.price }))
     : space
       ? planDurations(space).map((d) => {
+          // "Pick days" uses the daily price (and any daily discount) for each day picked.
+          const key = d.pickDays ? "day" : d.id;
           const discounted = voucher.state === "ok" && voucher.plan === space.id
-            ? voucher.prices[d.id]
-            : space.needsCoupon && coupon.state === "ok" ? coupon.prices?.[d.id] : undefined;
+            ? voucher.prices[key]
+            : space.needsCoupon && coupon.state === "ok" ? coupon.prices?.[key] : undefined;
           return {
-            id: d.id, title: d.title, hourly: !!d.hourly,
-            price: discounted || space.prices[d.id], full: discounted ? space.prices[d.id] : null,
-            note: d.hourly ? "per hour" : d.days > 1 ? `${d.days} days` : "1 day",
+            id: d.id, title: d.title, hourly: !!d.hourly, pickDays: !!d.pickDays,
+            price: discounted || unitPrice(space, d.id), full: discounted ? unitPrice(space, d.id) : null,
+            note: d.hourly ? "per hour" : d.pickDays ? "choose your days" : d.days > 1 ? `${d.days} days` : "1 day",
           };
         })
       : [];
@@ -154,12 +157,16 @@ export default function WorkspaceBooking() {
   const voucherApplied = canUseVoucher && !!duration?.full;
   const couponDiscount = !!space?.needsCoupon && !!duration?.full;
   const isHourly = !!duration?.hourly;
+  const isPickDays = !!duration?.pickDays;
   const needsTime = isEvent || isHourly;
   const hours = Math.max(1, Number(form.hours) || 1);
-  const breakdown = duration && priceBreakdown(isHourly ? duration.price * hours : duration.price);
   const minDate = isEvent ? lagosToday() : earliestSeatStart();
   const maxDate = addDays(lagosToday(), MAX_DAYS_AHEAD);
-  const dateOk = form.date && form.date >= minDate && form.date <= maxDate;
+  const days = (form.days || []).filter((d) => d >= minDate && d <= maxDate).sort();
+  const daysKey = days.join(",");
+  const units = isHourly ? hours : isPickDays ? days.length : 1;
+  const breakdown = duration && units > 0 && priceBreakdown(duration.price * units);
+  const dateOk = isPickDays ? days.length > 0 : form.date && form.date >= minDate && form.date <= maxDate;
 
   // Live seat count / free event times for the chosen date.
   useEffect(() => {
@@ -169,13 +176,15 @@ export default function WorkspaceBooking() {
     }
     const ctrl = new AbortController();
     setAvail({ loading: true });
-    const q = new URLSearchParams({ kind: space.kind, duration: duration.id, date: form.date });
+    const q = new URLSearchParams(
+      isPickDays ? { kind: "seat", duration: "days", days: daysKey } : { kind: space.kind, duration: duration.id, date: form.date }
+    );
     fetch(`/api/workspace/availability?${q}`, { signal: ctrl.signal })
       .then((r) => r.json().then((d) => (r.ok ? d : Promise.reject(new Error(d.error)))))
       .then((d) => setAvail({ loading: false, ...d }))
       .catch((err) => err.name !== "AbortError" && setAvail({ loading: false, error: err.message || "Could not check availability" }));
     return () => ctrl.abort();
-  }, [space?.kind, duration?.id, form.date, dateOk]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [space?.kind, duration?.id, form.date, daysKey, dateOk]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Drop a start time that's no longer free.
   useEffect(() => {
@@ -250,11 +259,11 @@ export default function WorkspaceBooking() {
     : !duration
       ? isEvent ? "Pick 6 or 12 hours" : "Pick how long"
       : !dateOk
-        ? "Pick a date"
+        ? isPickDays ? "Pick your days" : "Pick a date"
         : !timeChosen
           ? "Pick a start time"
           : seatsLeft === 0
-            ? "No seats left on those dates"
+            ? isPickDays ? "A picked day is fully booked" : "No seats left on those dates"
             : !detailsDone
               ? "Fill in your details"
               : null;
@@ -273,14 +282,16 @@ export default function WorkspaceBooking() {
       ...f,
       space: id,
       // Keep daily/weekly/monthly when switching between seat plans.
-      duration: next.kind === "event" ? (EVENT_SPACE.options.some((o) => o.id === f.duration) ? f.duration : "") : next.prices[f.duration] ? f.duration : "",
+      duration: next.kind === "event" ? (EVENT_SPACE.options.some((o) => o.id === f.duration) ? f.duration : "") : unitPrice(next, f.duration) ? f.duration : "",
       startHour: "",
     }));
     if (!form.duration) scrollTo(durationRef);
   };
   const pickDuration = (id) => {
     set("duration", id);
-    if (!form.date) {
+    if (id === "days") {
+      scrollTo(dateRef);
+    } else if (!form.date) {
       set("date", minDate);
       scrollTo(dateRef);
     }
@@ -304,7 +315,8 @@ export default function WorkspaceBooking() {
           kind: space.kind,
           plan: space.id,
           duration: duration.id,
-          date: form.date,
+          date: isPickDays ? days[0] : form.date,
+          days: isPickDays ? days : undefined,
           startHour: form.startHour === "" ? undefined : Number(form.startHour),
           hours: isHourly ? hours : undefined,
           name: form.name,
@@ -324,9 +336,18 @@ export default function WorkspaceBooking() {
   };
 
   const payLabel = breakdown ? `Pay ${formatNaira(breakdown.total)}` : "Continue";
-  const endDate = !isEvent && !isHourly && duration && dateOk ? seatEndDate(form.date, duration.id) : null;
+  const endDate = !isEvent && !isHourly && !isPickDays && duration && dateOk ? seatEndDate(form.date, duration.id) : null;
+  const toggleDay = (day) =>
+    setForm((f) => {
+      const cur = f.days || [];
+      if (cur.includes(day)) return { ...f, days: cur.filter((d) => d !== day) };
+      if (cur.length >= MAX_PICK_DAYS) return f;
+      return { ...f, days: [...cur, day].sort() };
+    });
   const whenText = !dateOk
     ? "—"
+    : isPickDays
+      ? formatDayList(days)
     : isEvent
       ? form.startHour !== ""
         ? `${formatDate(form.date)}, ${formatHour(Number(form.startHour))} – ${formatHour(Number(form.startHour) + EVENT_SPACE.options.find((o) => o.id === duration?.id)?.hours || 0)}`
@@ -361,7 +382,7 @@ export default function WorkspaceBooking() {
             </span>
           </h1>
           <p className="text-gray-300 text-[16px] md:text-xl leading-relaxed max-w-xl mx-auto">
-            Book a seat at the <b className="text-white font-semibold">Web3Nova Workspace</b> by the day, week or month, or reserve the event space.
+            Book a seat at the <b className="text-white font-semibold">Web3Nova Workspace</b> by the hour, day, week or month, pick the exact days you&apos;ll come in, or reserve the event space.
           </p>
 
           <div className={`${glass} mt-7 mx-auto max-w-md grid grid-cols-3 rounded-2xl divide-x divide-white/10`}>
@@ -421,14 +442,14 @@ export default function WorkspaceBooking() {
               <StepHeading n={2} title={isEvent ? "How long is your event?" : "How long do you need it?"} done={!!duration}
                 hint={space ? undefined : "Pick a space first."} />
               {space && (
-                <div className={`grid gap-2.5 sm:gap-3 ${isEvent ? "grid-cols-2" : durationOptions.length === 4 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
+                <div className={`grid gap-2.5 sm:gap-3 ${isEvent ? "grid-cols-2" : durationOptions.length >= 5 ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" : durationOptions.length === 4 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
                   {durationOptions.map((d) => (
                     <Chip key={d.id} active={form.duration === d.id} onClick={() => pickDuration(d.id)} color={style.color}>
                       <p className={`${DISPLAY} font-semibold text-[15px] sm:text-lg leading-tight pr-5`}>{d.title}</p>
                       {d.note && <p className="text-[11px] sm:text-xs text-gray-400 mt-0.5">{d.note}</p>}
                       {d.full && <p className="mt-2 text-xs text-gray-500 line-through leading-none">{formatNaira(d.full)}</p>}
                       <p className={`${DISPLAY} ${d.full ? "mt-1" : "mt-3"} text-lg sm:text-2xl font-bold text-yellow-400 leading-none`}>
-                        {formatNaira(d.price)}{d.hourly && <span className="text-xs font-medium text-gray-400">/hr</span>}
+                        {formatNaira(d.price)}{d.hourly && <span className="text-xs font-medium text-gray-400">/hr</span>}{d.pickDays && <span className="text-xs font-medium text-gray-400">/day</span>}
                       </p>
                     </Chip>
                   ))}
@@ -457,13 +478,18 @@ export default function WorkspaceBooking() {
 
             {/* Step 3: Date / time */}
             <section ref={dateRef} className="scroll-mt-24">
-              <StepHeading n={3} title={needsTime ? "Pick a date and start time" : "When do you start?"} done={whenDone}
-                hint={isHourly ? `Hourly passes end by ${CLOSE_LABEL}.` : !isEvent && duration ? `Passes run ${OPEN_LABEL} – ${CLOSE_LABEL} each day.` : undefined} />
+              <StepHeading n={3} title={needsTime ? "Pick a date and start time" : isPickDays ? "Which days are you coming?" : "When do you start?"} done={whenDone}
+                hint={isHourly ? `Hourly passes end by ${CLOSE_LABEL}.` : isPickDays ? `Tap each day you'll come in (up to ${MAX_PICK_DAYS}). Seats run ${OPEN_LABEL} – ${CLOSE_LABEL}.` : !isEvent && duration ? `Passes run ${OPEN_LABEL} – ${CLOSE_LABEL} each day.` : undefined} />
               {duration && (
                 <div className={`${glass} rounded-3xl p-4 sm:p-6 space-y-4`}>
-                  <Field icon={CalendarDays} label={isEvent ? "Event date" : isHourly ? "Date" : "Start date"} type="date" name="date"
-                    value={form.date} min={minDate} max={maxDate} onChange={handleChange}
-                    error={form.date && !dateOk ? `Pick a date from ${formatDate(minDate)}` : null} />
+                  {isPickDays ? (
+                    <DayPicker selected={days} minDate={minDate} maxDate={maxDate} color={style.color} onToggle={toggleDay}
+                      onClear={() => set("days", [])} freeByDay={avail.freeByDay} />
+                  ) : (
+                    <Field icon={CalendarDays} label={isEvent ? "Event date" : isHourly ? "Date" : "Start date"} type="date" name="date"
+                      value={form.date} min={minDate} max={maxDate} onChange={handleChange}
+                      error={form.date && !dateOk ? `Pick a date from ${formatDate(minDate)}` : null} />
+                  )}
 
                   {dateOk && !isEvent && (
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
@@ -474,7 +500,9 @@ export default function WorkspaceBooking() {
                       ) : seatsLeft !== null && (
                         <span className={`flex items-center gap-2 font-medium ${seatsLeft === 0 ? "text-red-400" : seatsLeft <= 10 ? "text-yellow-300" : "text-green-300"}`}>
                           <Users className="w-4 h-4" />
-                          {seatsLeft === 0 ? "Fully booked. Try another start date." : `${seatsLeft} of ${SEAT_CAPACITY} seats free`}
+                          {seatsLeft === 0
+                            ? isPickDays ? "A day you picked is fully booked. Tap it to remove it." : "Fully booked. Try another start date."
+                            : isPickDays ? `Seats free on all ${days.length} day${days.length === 1 ? "" : "s"}` : `${seatsLeft} of ${SEAT_CAPACITY} seats free`}
                         </span>
                       )}
                       {endDate && (
@@ -585,7 +613,7 @@ export default function WorkspaceBooking() {
             <h3 className={`${DISPLAY} text-lg font-bold mb-5`}>Web3Nova Workspace</h3>
             <dl className="space-y-3 text-sm mb-6">
               <div className="flex justify-between gap-4"><dt className="text-gray-400">Space</dt><dd className="text-right font-medium">{space?.title || "—"}</dd></div>
-              <div className="flex justify-between gap-4"><dt className="text-gray-400">Plan</dt><dd className="text-right font-medium">{duration ? `${duration.title}${isHourly ? ` (${hours} hr${hours === 1 ? "" : "s"})` : ""}` : "—"}</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-gray-400">Plan</dt><dd className="text-right font-medium">{duration ? `${duration.title}${isHourly ? ` (${hours} hr${hours === 1 ? "" : "s"})` : isPickDays && days.length ? ` (${days.length} day${days.length === 1 ? "" : "s"})` : ""}` : "—"}</dd></div>
               {voucherApplied && <div className="flex justify-between gap-4"><dt className="text-gray-400">Voucher</dt><dd className="text-right font-medium text-green-300">{form.voucher.trim()} (−{formatNaira(duration.full - duration.price)})</dd></div>}
               {couponDiscount && <div className="flex justify-between gap-4"><dt className="text-gray-400">Coupon</dt><dd className="text-right font-medium text-green-300">{form.coupon.trim()} (−{formatNaira(duration.full - duration.price)})</dd></div>}
               <div className="flex justify-between gap-4"><dt className="text-gray-400">When</dt><dd className="text-right font-medium">{whenText}</dd></div>
@@ -641,6 +669,77 @@ export default function WorkspaceBooking() {
         .ws-sheen { animation: ws-sheen 2.8s ease-in-out infinite; }
         @media (prefers-reduced-motion: reduce) { .ws-fade, .ws-sheen { animation: none; } }
       `}</style>
+    </div>
+  );
+}
+
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+// Month calendar for "Pick days": tap days on and off. Dates are YYYY-MM-DD (Lagos).
+function DayPicker({ selected, minDate, maxDate, color, onToggle, onClear, freeByDay }) {
+  const [month, setMonth] = useState((selected[0] || minDate).slice(0, 7));
+  const first = `${month}-01`;
+  const lead = (new Date(`${first}T12:00:00Z`).getUTCDay() + 6) % 7; // Monday first
+  const cells = [];
+  for (let i = 0; i < lead; i++) cells.push(null);
+  for (let d = first; d.slice(0, 7) === month; d = addDays(d, 1)) cells.push(d);
+  const shift = (n) => {
+    const d = new Date(`${first}T12:00:00Z`);
+    d.setUTCMonth(d.getUTCMonth() + n);
+    setMonth(d.toISOString().slice(0, 7));
+  };
+  const canPrev = month > minDate.slice(0, 7);
+  const canNext = month < maxDate.slice(0, 7);
+  const label = new Date(`${first}T12:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
+  const full = selected.length >= MAX_PICK_DAYS;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <button type="button" aria-label="Previous month" disabled={!canPrev} onClick={() => shift(-1)}
+          className="w-10 h-10 rounded-xl border border-white/10 bg-black/30 flex items-center justify-center disabled:opacity-30">
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <p className={`${DISPLAY} font-semibold text-lg`}>{label}</p>
+        <button type="button" aria-label="Next month" disabled={!canNext} onClick={() => shift(1)}
+          className="w-10 h-10 rounded-xl border border-white/10 bg-black/30 flex items-center justify-center disabled:opacity-30">
+          <ChevronRight className="w-5 h-5" />
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-1.5 text-center">
+        {WEEKDAYS.map((w) => (
+          <span key={w} className="text-[11px] uppercase tracking-wider text-gray-500 pb-1">{w}</span>
+        ))}
+        {cells.map((d, i) => {
+          if (!d) return <span key={`blank-${i}`} />;
+          const active = selected.includes(d);
+          const soldOut = active && freeByDay?.[d] === 0;
+          const disabled = d < minDate || d > maxDate || (!active && full);
+          return (
+            <button type="button" key={d} disabled={disabled} onClick={() => onToggle(d)} aria-pressed={active}
+              aria-label={formatDate(d)}
+              className={`aspect-square rounded-xl border text-sm font-semibold transition ${disabled ? "border-transparent text-gray-600 cursor-not-allowed" : active ? "text-black" : "border-white/10 bg-black/30 text-gray-200 hover:border-white/30"} ${soldOut ? "line-through" : ""}`}
+              style={active ? { backgroundColor: soldOut ? "#f87171" : color, borderColor: soldOut ? "#f87171" : color } : undefined}>
+              {Number(d.slice(8))}
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+        {selected.length ? (
+          <>
+            <span className="text-gray-200">
+              <b>{selected.length}</b> day{selected.length === 1 ? "" : "s"}: {formatDayList(selected)}
+            </span>
+            <button type="button" onClick={onClear} className="inline-flex items-center gap-1 text-gray-400 hover:text-white">
+              <X className="w-4 h-4" /> Clear
+            </button>
+          </>
+        ) : (
+          <span className="text-gray-400">No days picked yet.</span>
+        )}
+        {full && <span className="text-yellow-300">That&apos;s the most you can pick in one booking ({MAX_PICK_DAYS}).</span>}
+      </div>
     </div>
   );
 }
