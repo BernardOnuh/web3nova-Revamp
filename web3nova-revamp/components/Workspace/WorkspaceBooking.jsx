@@ -148,7 +148,7 @@ export default function WorkspaceBooking() {
           return {
             id: d.id, title: d.title, hourly: !!d.hourly, pickDays: !!d.pickDays,
             price: discounted || unitPrice(space, d.id), full: discounted ? unitPrice(space, d.id) : null,
-            note: d.hourly ? "per hour" : d.pickDays ? "choose your days" : d.days > 1 ? `${d.days} days` : "1 day",
+            note: d.hourly ? "per hour" : d.pickDays ? "any dates you choose" : d.days > 1 ? `${d.days} days` : "1 day",
           };
         })
       : [];
@@ -259,7 +259,7 @@ export default function WorkspaceBooking() {
     : !duration
       ? isEvent ? "Pick 6 or 12 hours" : "Pick how long"
       : !dateOk
-        ? isPickDays ? "Pick your days" : "Pick a date"
+        ? isPickDays ? "Pick your dates" : "Pick a date"
         : !timeChosen
           ? "Pick a start time"
           : seatsLeft === 0
@@ -286,6 +286,11 @@ export default function WorkspaceBooking() {
       startHour: "",
     }));
     if (!form.duration) scrollTo(durationRef);
+  };
+  // Hero shortcut: Basic seat + "Pick dates", straight to the calendar.
+  const startPickDates = () => {
+    setForm((f) => ({ ...f, space: SPACES.some((s) => s.id === f.space && s.kind === "seat") ? f.space : "basic", duration: "days", startHour: "" }));
+    scrollTo(dateRef);
   };
   const pickDuration = (id) => {
     set("duration", id);
@@ -382,8 +387,14 @@ export default function WorkspaceBooking() {
             </span>
           </h1>
           <p className="text-gray-300 text-[16px] md:text-xl leading-relaxed max-w-xl mx-auto">
-            Book a seat at the <b className="text-white font-semibold">Web3Nova Workspace</b> by the hour, day, week or month, pick the exact days you&apos;ll come in, or reserve the event space.
+            Book a seat at the <b className="text-white font-semibold">Web3Nova Workspace</b> by the hour, day, week or month, pick the exact dates you&apos;ll come in, or reserve the event space.
           </p>
+
+          <button type="button" onClick={startPickDates}
+            className={`${DISPLAY} mt-6 inline-flex items-center gap-2 rounded-full px-5 py-3 font-semibold text-black bg-gradient-to-r from-[#5AA9FF] to-[#FDB913] hover:brightness-110 active:scale-[0.97] transition`}>
+            <CalendarDays className="w-5 h-5" /> Pick your dates
+          </button>
+          <p className="text-xs text-gray-400 mt-2">Choose any days you want to come in and pay once.</p>
 
           <div className={`${glass} mt-7 mx-auto max-w-md grid grid-cols-3 rounded-2xl divide-x divide-white/10`}>
             {[
@@ -439,8 +450,8 @@ export default function WorkspaceBooking() {
 
             {/* Step 2: Duration */}
             <section ref={durationRef} className="scroll-mt-24">
-              <StepHeading n={2} title={isEvent ? "How long is your event?" : "How long do you need it?"} done={!!duration}
-                hint={space ? undefined : "Pick a space first."} />
+              <StepHeading n={2} title={isEvent ? "How long is your event?" : "How long, or which dates?"} done={!!duration}
+                hint={space ? (isEvent ? undefined : "Choose \"Pick dates\" to select the exact days you'll come in.") : "Pick a space first. Then choose Hourly, Daily, Pick dates, Weekly or Monthly."} />
               {space && (
                 <div className={`grid gap-2.5 sm:gap-3 ${isEvent ? "grid-cols-2" : durationOptions.length >= 5 ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" : durationOptions.length === 4 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
                   {durationOptions.map((d) => (
@@ -478,7 +489,7 @@ export default function WorkspaceBooking() {
 
             {/* Step 3: Date / time */}
             <section ref={dateRef} className="scroll-mt-24">
-              <StepHeading n={3} title={needsTime ? "Pick a date and start time" : isPickDays ? "Which days are you coming?" : "When do you start?"} done={whenDone}
+              <StepHeading n={3} title={needsTime ? "Pick a date and start time" : isPickDays ? "Which dates are you coming?" : "When do you start?"} done={whenDone}
                 hint={isHourly ? `Hourly passes end by ${CLOSE_LABEL}.` : isPickDays ? `Tap each day you'll come in (up to ${MAX_PICK_DAYS}). Seats run ${OPEN_LABEL} – ${CLOSE_LABEL}.` : !isEvent && duration ? `Passes run ${OPEN_LABEL} – ${CLOSE_LABEL} each day.` : undefined} />
               {duration && (
                 <div className={`${glass} rounded-3xl p-4 sm:p-6 space-y-4`}>

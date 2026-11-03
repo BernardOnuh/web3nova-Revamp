@@ -16,7 +16,7 @@ export const MAX_PICK_DAYS = 30;
 export const DURATIONS = [
   { id: "hour", title: "Hourly", days: 1, unit: "hour", hourly: true },
   { id: "day", title: "Daily", days: 1, unit: "day" },
-  { id: "days", title: "Pick days", unit: "day", pickDays: true },
+  { id: "days", title: "Pick dates", unit: "day", pickDays: true },
   { id: "week", title: "Weekly", days: 7, unit: "week" },
   { id: "month", title: "Monthly", days: 30, unit: "month" },
 ];
@@ -195,7 +195,7 @@ export function describeBooking(b) {
     const n = b.days.length;
     return {
       planTitle: plan?.title || b.plan,
-      durationTitle: `Pick days (${n} day${n === 1 ? "" : "s"})`,
+      durationTitle: `Pick dates (${n} day${n === 1 ? "" : "s"})`,
       when: `${formatDayList(b.days)}, ${OPEN_LABEL} – ${CLOSE_LABEL}`,
     };
   }
