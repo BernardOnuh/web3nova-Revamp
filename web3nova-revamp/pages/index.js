@@ -24,6 +24,7 @@ import Footer from "@/components/Footer";
 import Web3NovaHomepage from "@/components/Hero";
 import Navigation from "@/components/Hero/navbar";
 import Seo from "@/components/Seo";
+import BuildStationPopup from "@/components/BuildStationPopup";
 import { ORGANIZATION, SITE } from "@/lib/seo";
 
 const WEBSITE = { "@context": "https://schema.org", "@type": "WebSite", name: SITE.name, url: SITE.url, publisher: { "@id": ORGANIZATION["@id"] } };
@@ -32,6 +33,7 @@ export default function Home() {
     <>
       <Seo path="/" jsonLd={[ORGANIZATION, WEBSITE]} />
       <Navigation />
+      <BuildStationPopup />
       <Web3NovaHomepage />
 
       {/* Add id here for smooth scrolling */}
